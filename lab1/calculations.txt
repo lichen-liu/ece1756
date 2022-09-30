@@ -1,0 +1,4 @@
+baseline:
+max # of copies/device = 1518dsp/9 = 168.67 = 168
+max throughput for a full device = 44.8MHz / 1 * 168 = 7.5264e9
+max throughput/watt for a full device = 7.5264e9 / (1.96mW / 42MHz * 44.8MHz * 168) = 7.5264e9 / 351.232mW = 2.142857e10/W
