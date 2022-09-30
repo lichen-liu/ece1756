@@ -46,38 +46,52 @@ logic [WIDTHOUT-1:0] m4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) *
 logic [WIDTHOUT-1:0] a4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
 logic [WIDTHOUT-1:0] y_D;
 
-// Piepeline: 9 stages in total
-localparam PIPELINE_STAGES = 9;
+// Piepeline: 2 * 9 (operator-bounded) stages in total
+localparam PIPELINE_STAGES = 18;
 // Pipelined signals for computing the y output
 logic [WIDTHOUT-1:0] m0_out_reg; // A5 * x
+logic [WIDTHOUT-1:0] m0_out_reg_reg; // A5 * x
 logic [WIDTHOUT-1:0] a0_out_reg; // A5 * x + A4
+logic [WIDTHOUT-1:0] a0_out_reg_reg; // A5 * x + A4
 logic [WIDTHOUT-1:0] m1_out_reg; // (A5 * x + A4) * x
+logic [WIDTHOUT-1:0] m1_out_reg_reg; // (A5 * x + A4) * x
 logic [WIDTHOUT-1:0] a1_out_reg; // (A5 * x + A4) * x + A3
+logic [WIDTHOUT-1:0] a1_out_reg_reg; // (A5 * x + A4) * x + A3
 logic [WIDTHOUT-1:0] m2_out_reg; // ((A5 * x + A4) * x + A3) * x
+logic [WIDTHOUT-1:0] m2_out_reg_reg; // ((A5 * x + A4) * x + A3) * x
 logic [WIDTHOUT-1:0] a2_out_reg; // ((A5 * x + A4) * x + A3) * x + A2
+logic [WIDTHOUT-1:0] a2_out_reg_reg; // ((A5 * x + A4) * x + A3) * x + A2
 logic [WIDTHOUT-1:0] m3_out_reg; // (((A5 * x + A4) * x + A3) * x + A2) * x
+logic [WIDTHOUT-1:0] m3_out_reg_reg; // (((A5 * x + A4) * x + A3) * x + A2) * x
 logic [WIDTHOUT-1:0] a3_out_reg; // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
+logic [WIDTHOUT-1:0] a3_out_reg_reg; // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
 logic [WIDTHOUT-1:0] m4_out_reg; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
-// Pipelined x signal, last stage not needed
-logic [PIPELINE_STAGES-2:0] [WIDTHIN-1:0] x_regs;
+logic [WIDTHOUT-1:0] m4_out_reg_reg; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
+// Pipelined x signal
+logic [PIPELINE_STAGES-1:0] [WIDTHIN-1:0] x_regs;
 // Pipelined valid_Q1 signal
 logic [PIPELINE_STAGES-1:0] valid_Q1_regs;
 
 // compute y value
-mult16x16 Mult0 (.i_dataa(A5), 			.i_datab(x), 			.o_res(m0_out));
-addr32p16 Addr0 (.i_dataa(m0_out_reg), 	.i_datab(A4), 			.o_res(a0_out)); // ^^stage 0
-
-mult32x16 Mult1 (.i_dataa(a0_out_reg), 	.i_datab(x_regs[1]), 	.o_res(m1_out)); // ^^stage 1
-addr32p16 Addr1 (.i_dataa(m1_out_reg), 	.i_datab(A3), 			.o_res(a1_out)); // ^^stage 2
-
-mult32x16 Mult2 (.i_dataa(a1_out_reg), 	.i_datab(x_regs[3]), 	.o_res(m2_out)); // ^^stage 3
-addr32p16 Addr2 (.i_dataa(m2_out_reg), 	.i_datab(A2), 			.o_res(a2_out)); // ^^stage 4
-
-mult32x16 Mult3 (.i_dataa(a2_out_reg), 	.i_datab(x_regs[5]), 	.o_res(m3_out)); // ^^stage 5
-addr32p16 Addr3 (.i_dataa(m3_out_reg), 	.i_datab(A1), 			.o_res(a3_out)); // ^^stage 6
-
-mult32x16 Mult4 (.i_dataa(a3_out_reg), 	.i_datab(x_regs[7]), 	.o_res(m4_out)); // ^^stage 7
-addr32p16 Addr4 (.i_dataa(m4_out_reg), 	.i_datab(A0), 			.o_res(a4_out)); // ^^stage 8
+mult16x16 Mult0 (.i_dataa(A5), 				.i_datab(x), 			.o_res(m0_out));
+																					 // ^^stage 0 (m0_out_reg)
+addr32p16 Addr0 (.i_dataa(m0_out_reg_reg), 	.i_datab(A4), 			.o_res(a0_out)); // ^^stage 1 (m0_out_reg_reg)
+																					 // ^^stage 2 (a0_out_reg)
+mult32x16 Mult1 (.i_dataa(a0_out_reg_reg), 	.i_datab(x_regs[3]), 	.o_res(m1_out)); // ^^stage 3 (a0_out_reg_reg)
+																					 // ^^stage 4 (m1_out_reg)
+addr32p16 Addr1 (.i_dataa(m1_out_reg_reg), 	.i_datab(A3), 			.o_res(a1_out)); // ^^stage 5 (m1_out_reg_reg)
+																					 // ^^stage 6 (a1_out_reg)
+mult32x16 Mult2 (.i_dataa(a1_out_reg_reg), 	.i_datab(x_regs[7]), 	.o_res(m2_out)); // ^^stage 7 (a1_out_reg_reg)
+																					 // ^^stage 8 (m2_out_reg)
+addr32p16 Addr2 (.i_dataa(m2_out_reg_reg), 	.i_datab(A2), 			.o_res(a2_out)); // ^^stage 9 (m2_out_reg_reg)
+																					 // ^^stage 10 (a2_out_reg)
+mult32x16 Mult3 (.i_dataa(a2_out_reg_reg), 	.i_datab(x_regs[11]), 	.o_res(m3_out)); // ^^stage 11 (a2_out_reg_reg)
+																					 // ^^stage 12 (m3_out_reg)
+addr32p16 Addr3 (.i_dataa(m3_out_reg_reg), 	.i_datab(A1), 			.o_res(a3_out)); // ^^stage 13 (m3_out_reg_reg)
+																					 // ^^stage 14 (a3_out_reg)
+mult32x16 Mult4 (.i_dataa(a3_out_reg_reg), 	.i_datab(x_regs[15]), 	.o_res(m4_out)); // ^^stage 15 (a3_out_reg_reg)
+																					 // ^^stage 16 (m4_out_reg)
+addr32p16 Addr4 (.i_dataa(m4_out_reg_reg), 	.i_datab(A0), 			.o_res(a4_out)); // ^^stage 17 (m4_out_reg_reg)
 
 assign y_D = a4_out;
 
@@ -100,14 +114,23 @@ always_ff @(posedge clk or posedge reset) begin
 		x_regs <= 0;
 		valid_Q1_regs <= 0;
 		m0_out_reg <= 0;
-		a0_out_reg <= 0;
 		m1_out_reg <= 0;
-		a1_out_reg <= 0;
 		m2_out_reg <= 0;
-		a2_out_reg <= 0;
 		m3_out_reg <= 0;
-		a3_out_reg <= 0;
 		m4_out_reg <= 0;
+		m0_out_reg_reg <= 0;
+		m1_out_reg_reg <= 0;
+		m2_out_reg_reg <= 0;
+		m3_out_reg_reg <= 0;
+		m4_out_reg_reg <= 0;
+		a0_out_reg <= 0;
+		a1_out_reg <= 0;
+		a2_out_reg <= 0;
+		a3_out_reg <= 0;
+		a0_out_reg_reg <= 0;
+		a1_out_reg_reg <= 0;
+		a2_out_reg_reg <= 0;
+		a3_out_reg_reg <= 0;
 	end else if (enable) begin
 		// propagate the valid value
 		valid_Q1 <= i_valid;
@@ -117,21 +140,30 @@ always_ff @(posedge clk or posedge reset) begin
 		// read in new x value
 		x <= i_x;
 		// pipeline x
-		x_regs <= {x_regs[(PIPELINE_STAGES-2)-1:0], x};
+		x_regs <= {x_regs[(PIPELINE_STAGES-1)-1:0], x};
 		
 		// output computed y value
 		y_Q <= y_D;
 
 		// pipeline calculation intermediate results
 		m0_out_reg <= m0_out;
-		a0_out_reg <= a0_out;
 		m1_out_reg <= m1_out;
-		a1_out_reg <= a1_out;
 		m2_out_reg <= m2_out;
-		a2_out_reg <= a2_out;
 		m3_out_reg <= m3_out;
-		a3_out_reg <= a3_out;
 		m4_out_reg <= m4_out;
+		m0_out_reg_reg <= m0_out_reg;
+		m1_out_reg_reg <= m1_out_reg;
+		m2_out_reg_reg <= m2_out_reg;
+		m3_out_reg_reg <= m3_out_reg;
+		m4_out_reg_reg <= m4_out_reg;
+		a0_out_reg <= a0_out;
+		a1_out_reg <= a1_out;
+		a2_out_reg <= a2_out;
+		a3_out_reg <= a3_out;
+		a0_out_reg_reg <= a0_out_reg;
+		a1_out_reg_reg <= a1_out_reg;
+		a2_out_reg_reg <= a2_out_reg;
+		a3_out_reg_reg <= a3_out_reg;
 	end
 end
 
