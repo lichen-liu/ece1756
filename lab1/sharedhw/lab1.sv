@@ -22,6 +22,10 @@ module lab1 #
 	input [WIDTHIN-1:0] i_x,
 	output [WIDTHOUT-1:0] o_y
 );
+
+localparam [WIDTHOUT-1:0] A5_32b = 32'b0000000_0000001000100000000000000;  // a5 = 1/120
+
+
 //Output value could overflow (32-bit output, and 16-bit inputs multiplied
 //together repeatedly).  Don't worry about that -- assume that only the bottom
 //32 bits are of interest, and keep them.
@@ -47,7 +51,7 @@ logic [WIDTHOUT-1:0] a4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) *
 logic [WIDTHOUT-1:0] y_D;
 
 // compute y value
-mult16x16 Mult0 (.i_dataa(A5), 		.i_datab(x), 	.o_res(m0_out));
+mult32x16 Mult0 (.i_dataa(A5_32b), 	.i_datab(x), 	.o_res(m0_out));
 addr32p16 Addr0 (.i_dataa(m0_out), 	.i_datab(A4), 	.o_res(a0_out));
 
 mult32x16 Mult1 (.i_dataa(a0_out), 	.i_datab(x), 	.o_res(m1_out));
@@ -100,27 +104,6 @@ assign o_ready = i_ready;
 //	will still remain on the register outputs and the circuit will resume
 //  normal operation when the receiver is ready again (i_ready is high)
 assign o_valid = valid_Q2 & i_ready;	
-
-endmodule
-
-/*******************************************************************************************/
-
-// Multiplier module for the first 16x16 multiplication
-module mult16x16 (
-	input  [15:0] i_dataa,
-	input  [15:0] i_datab,
-	output [31:0] o_res
-);
-
-logic [31:0] result;
-
-always_comb begin
-	result = i_dataa * i_datab;
-end
-
-// The result of Q2.14 x Q2.14 is in the Q4.28 format. Therefore we need to change it
-// to the Q7.25 format specified in the assignment by shifting right and padding with zeros.
-assign o_res = {3'b000, result[31:3]};
 
 endmodule
 
