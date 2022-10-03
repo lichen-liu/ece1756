@@ -23,87 +23,333 @@ module lab1 #
 	output [WIDTHOUT-1:0] o_y
 );
 
+logic enable;
+assign enable = i_ready;
+
+/*******************************************************************************************/
+// Datapath
+// Parameters
 localparam [WIDTHOUT-1:0] A5_32b = 32'b0000000_0000001000100000000000000;  // a5 = 1/120
 
+// Register
+logic [WIDTHOUT-1:0] dp_tmp; // Register to hold intermediate result
+logic [WIDTHIN-1:0] dp_x; // Register to hold input X
 
-//Output value could overflow (32-bit output, and 16-bit inputs multiplied
-//together repeatedly).  Don't worry about that -- assume that only the bottom
-//32 bits are of interest, and keep them.
-logic [WIDTHIN-1:0] x;	// Register to hold input X
-logic [WIDTHOUT-1:0] y_Q;	// Register to hold output Y
-logic valid_Q1;		// Output of register x is valid
-logic valid_Q2;		// Output of register y is valid
+// Rigster control, (FSM output)
+logic dp_tmp_enable;
+logic dp_x_enable;
 
-// signal for enabling sequential circuit elements
-logic enable;
+// Multiplexer control, (FSM output)
+enum logic {FROM_A5_32B, FROM_DP_TMP} dp_mult_dataa_select;
+enum logic [2:0] {FROM_A4, FROM_A3, FROM_A2, FROM_A1, FROM_A0} dp_addr_datab_select;
+enum logic {FROM_MULT, FROM_ADDR} dp_tmp_d_select;
 
-// Signals for computing the y output
-logic [WIDTHOUT-1:0] m0_out; // A5 * x
-logic [WIDTHOUT-1:0] a0_out; // A5 * x + A4
-logic [WIDTHOUT-1:0] m1_out; // (A5 * x + A4) * x
-logic [WIDTHOUT-1:0] a1_out; // (A5 * x + A4) * x + A3
-logic [WIDTHOUT-1:0] m2_out; // ((A5 * x + A4) * x + A3) * x
-logic [WIDTHOUT-1:0] a2_out; // ((A5 * x + A4) * x + A3) * x + A2
-logic [WIDTHOUT-1:0] m3_out; // (((A5 * x + A4) * x + A3) * x + A2) * x
-logic [WIDTHOUT-1:0] a3_out; // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
-logic [WIDTHOUT-1:0] m4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
-logic [WIDTHOUT-1:0] a4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
-logic [WIDTHOUT-1:0] y_D;
+// Multiplexer output
+logic [WIDTHOUT-1:0] dp_mult_dataa;
+logic [WIDTHIN-1:0] dp_addr_datab;
+logic [WIDTHOUT-1:0] dp_tmp_d;
 
-// compute y value
-mult32x16 Mult0 (.i_dataa(A5_32b), 	.i_datab(x), 	.o_res(m0_out));
-addr32p16 Addr0 (.i_dataa(m0_out), 	.i_datab(A4), 	.o_res(a0_out));
+// Mult and Addr output
+logic [WIDTHOUT-1:0] dp_mult_out;
+logic [WIDTHOUT-1:0] dp_addr_out;
 
-mult32x16 Mult1 (.i_dataa(a0_out), 	.i_datab(x), 	.o_res(m1_out));
-addr32p16 Addr1 (.i_dataa(m1_out), 	.i_datab(A3), 	.o_res(a1_out));
+// Mult and Addr
+mult32x16 Mult0 (.i_dataa(dp_mult_dataa), 	.i_datab(dp_x), 	.o_res(dp_mult_out));
+addr32p16 Addr0 (.i_dataa(dp_tmp), 	.i_datab(dp_addr_datab), 	.o_res(dp_addr_out));
 
-mult32x16 Mult2 (.i_dataa(a1_out), 	.i_datab(x), 	.o_res(m2_out));
-addr32p16 Addr2 (.i_dataa(m2_out), 	.i_datab(A2), 	.o_res(a2_out));
-
-mult32x16 Mult3 (.i_dataa(a2_out), 	.i_datab(x), 	.o_res(m3_out));
-addr32p16 Addr3 (.i_dataa(m3_out), 	.i_datab(A1), 	.o_res(a3_out));
-
-mult32x16 Mult4 (.i_dataa(a3_out), 	.i_datab(x), 	.o_res(m4_out));
-addr32p16 Addr4 (.i_dataa(m4_out), 	.i_datab(A0), 	.o_res(a4_out));
-
-assign y_D = a4_out;
-
-// Combinational logic
+// Multiplexer
 always_comb begin
-	// signal for enable
-	enable = i_ready;
+	case (dp_mult_dataa_select)
+		FROM_DP_TMP: dp_mult_dataa = dp_tmp;
+		FROM_A5_32B: dp_mult_dataa = A5_32b;
+		default: dp_mult_dataa = 0;
+	endcase
+
+	case(dp_addr_datab_select)
+		FROM_A4: dp_addr_datab = A4;
+		FROM_A3: dp_addr_datab = A3;
+		FROM_A2: dp_addr_datab = A2;
+		FROM_A1: dp_addr_datab = A1;
+		FROM_A0: dp_addr_datab = A0;
+		default: dp_addr_datab = 0;
+	endcase
+
+	case(dp_tmp_d_select)
+		FROM_MULT: dp_tmp_d = dp_mult_out;
+		FROM_ADDR: dp_tmp_d = dp_addr_out;
+		default: dp_tmp_d = 0;
+	endcase
 end
 
-// Infer the registers
+// Register
 always_ff @(posedge clk or posedge reset) begin
 	if (reset) begin
-		valid_Q1 <= 1'b0;
-		valid_Q2 <= 1'b0;
-		
-		x <= 0;
-		y_Q <= 0;
+		dp_tmp <= 0;
+		dp_x <= 0;
 	end else if (enable) begin
-		// propagate the valid value
-		valid_Q1 <= i_valid;
-		valid_Q2 <= valid_Q1;
-		
-		// read in new x value
-		x <= i_x;
-		
-		// output computed y value
-		y_Q <= y_D;
+		if (dp_tmp_enable) begin
+			dp_tmp <= dp_tmp_d;
+		end
+
+		if (dp_x_enable) begin
+			dp_x <= i_x;
+		end
 	end
 end
 
-// assign outputs
-assign o_y = y_Q;
-// ready for inputs as long as receiver is ready for outputs */
-assign o_ready = i_ready;   		
-// the output is valid as long as the corresponding input was valid and 
-//	the receiver is ready. If the receiver isn't ready, the computed output
-//	will still remain on the register outputs and the circuit will resume
-//  normal operation when the receiver is ready again (i_ready is high)
-assign o_valid = valid_Q2 & i_ready;	
+assign o_y = dp_tmp;
+
+/*******************************************************************************************/
+// FSM
+
+// FSM output
+logic output_valid;
+logic compute_busy;
+
+// State
+typedef enum logic [3:0] {RECEIVE_INPUT, COMPUTE_0, COMPUTE_1, COMPUTE_2, COMPUTE_3, COMPUTE_4, COMPUTE_5, COMPUTE_6, COMPUTE_7, COMPUTE_8, COMPUTE_9, SEND_OUTPUT} fsm_state_type;
+fsm_state_type fsm_current_state; // Register
+fsm_state_type fsm_next_state;
+
+// State register
+always_ff @(posedge clk or posedge reset) begin
+	if (reset) begin
+		fsm_current_state <= RECEIVE_INPUT;
+	end else if (enable) begin
+		fsm_current_state <= fsm_next_state;
+	end
+end
+
+// State transition and control signal
+always_comb begin
+	case(fsm_current_state)
+	RECEIVE_INPUT: begin
+		if (i_valid) begin
+			dp_tmp_enable = 0;
+			dp_x_enable = 1;
+			dp_mult_dataa_select = FROM_A5_32B;
+			dp_addr_datab_select = FROM_A4;
+			dp_tmp_d_select = FROM_MULT;
+			output_valid = 0;
+			compute_busy = 1;
+			fsm_next_state = COMPUTE_0;
+		end else begin
+			dp_tmp_enable = 0;
+			dp_x_enable = 0;
+			dp_mult_dataa_select = FROM_A5_32B;
+			dp_addr_datab_select = FROM_A4;
+			dp_tmp_d_select = FROM_MULT;
+			output_valid = 0;
+			compute_busy = 0;
+			fsm_next_state = RECEIVE_INPUT;
+		end
+	end
+	COMPUTE_0: begin // tmp = A5_32b * x
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_A5_32B;
+		dp_addr_datab_select = FROM_A4;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_1;
+	end
+	COMPUTE_1: begin // tmp = tmp + A4
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A4;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_2;
+	end
+	COMPUTE_2: begin // tmp = tmp * x
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A3;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_3;
+	end
+	COMPUTE_3: begin // tmp = tmp + A3
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A3;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_4;
+	end
+	COMPUTE_4: begin // tmp = tmp * x
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A2;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_5;
+	end
+	COMPUTE_5: begin // tmp = tmp + A2
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A2;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_6;
+	end
+	COMPUTE_6: begin // tmp = tmp * x
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A1;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_7;
+	end
+	COMPUTE_7: begin // tmp = tmp + A1
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A1;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_8;
+	end
+	COMPUTE_8: begin // tmp = tmp * x
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A0;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = COMPUTE_9;
+	end
+	COMPUTE_9: begin // tmp = tmp + A0
+		dp_tmp_enable = 1;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A0;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 0;
+		compute_busy = 1;
+		fsm_next_state = SEND_OUTPUT;
+	end
+	SEND_OUTPUT: begin
+		dp_tmp_enable = 0;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_DP_TMP;
+		dp_addr_datab_select = FROM_A0;
+		dp_tmp_d_select = FROM_ADDR;
+		output_valid = 1;
+		compute_busy = 1;
+		fsm_next_state = RECEIVE_INPUT;
+	end
+	default: begin
+		dp_tmp_enable = 0;
+		dp_x_enable = 0;
+		dp_mult_dataa_select = FROM_A5_32B;
+		dp_addr_datab_select = FROM_A4;
+		dp_tmp_d_select = FROM_MULT;
+		output_valid = 0;
+		compute_busy = 0;
+		fsm_next_state = RECEIVE_INPUT;
+	end
+	endcase
+end
+
+assign o_valid = output_valid & i_ready;
+assign o_ready = ~compute_busy & i_ready;
+/*******************************************************************************************/
+
+
+// //Output value could overflow (32-bit output, and 16-bit inputs multiplied
+// //together repeatedly).  Don't worry about that -- assume that only the bottom
+// //32 bits are of interest, and keep them.
+// logic [WIDTHIN-1:0] x;	// Register to hold input X
+// logic [WIDTHOUT-1:0] y_Q;	// Register to hold output Y
+// logic valid_Q1;		// Output of register x is valid
+// logic valid_Q2;		// Output of register y is valid
+
+// // signal for enabling sequential circuit elements
+// logic enable;
+
+// // Signals for computing the y output
+// logic [WIDTHOUT-1:0] m0_out; // A5 * x
+// logic [WIDTHOUT-1:0] a0_out; // A5 * x + A4
+// logic [WIDTHOUT-1:0] m1_out; // (A5 * x + A4) * x
+// logic [WIDTHOUT-1:0] a1_out; // (A5 * x + A4) * x + A3
+// logic [WIDTHOUT-1:0] m2_out; // ((A5 * x + A4) * x + A3) * x
+// logic [WIDTHOUT-1:0] a2_out; // ((A5 * x + A4) * x + A3) * x + A2
+// logic [WIDTHOUT-1:0] m3_out; // (((A5 * x + A4) * x + A3) * x + A2) * x
+// logic [WIDTHOUT-1:0] a3_out; // (((A5 * x + A4) * x + A3) * x + A2) * x + A1
+// logic [WIDTHOUT-1:0] m4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x
+// logic [WIDTHOUT-1:0] a4_out; // ((((A5 * x + A4) * x + A3) * x + A2) * x + A1) * x + A0
+// logic [WIDTHOUT-1:0] y_D;
+
+// // compute y value
+// mult32x16 Mult0 (.i_dataa(A5_32b), 	.i_datab(x), 	.o_res(m0_out));
+// addr32p16 Addr0 (.i_dataa(m0_out), 	.i_datab(A4), 	.o_res(a0_out));
+
+// mult32x16 Mult1 (.i_dataa(a0_out), 	.i_datab(x), 	.o_res(m1_out));
+// addr32p16 Addr1 (.i_dataa(m1_out), 	.i_datab(A3), 	.o_res(a1_out));
+
+// mult32x16 Mult2 (.i_dataa(a1_out), 	.i_datab(x), 	.o_res(m2_out));
+// addr32p16 Addr2 (.i_dataa(m2_out), 	.i_datab(A2), 	.o_res(a2_out));
+
+// mult32x16 Mult3 (.i_dataa(a2_out), 	.i_datab(x), 	.o_res(m3_out));
+// addr32p16 Addr3 (.i_dataa(m3_out), 	.i_datab(A1), 	.o_res(a3_out));
+
+// mult32x16 Mult4 (.i_dataa(a3_out), 	.i_datab(x), 	.o_res(m4_out));
+// addr32p16 Addr4 (.i_dataa(m4_out), 	.i_datab(A0), 	.o_res(a4_out));
+
+// assign y_D = a4_out;
+
+// // Combinational logic
+// always_comb begin
+// 	// signal for enable
+// 	enable = i_ready;
+// end
+
+// // Infer the registers
+// always_ff @(posedge clk or posedge reset) begin
+// 	if (reset) begin
+// 		valid_Q1 <= 1'b0;
+// 		valid_Q2 <= 1'b0;
+		
+// 		x <= 0;
+// 		y_Q <= 0;
+// 	end else if (enable) begin
+// 		// propagate the valid value
+// 		valid_Q1 <= i_valid;
+// 		valid_Q2 <= valid_Q1;
+		
+// 		// read in new x value
+// 		x <= i_x;
+		
+// 		// output computed y value
+// 		y_Q <= y_D;
+// 	end
+// end
+
+// // assign outputs
+// assign o_y = y_Q;
+// // ready for inputs as long as receiver is ready for outputs */
+// assign o_ready = i_ready;   		
+// // the output is valid as long as the corresponding input was valid and 
+// //	the receiver is ready. If the receiver isn't ready, the computed output
+// //	will still remain on the register outputs and the circuit will resume
+// //  normal operation when the receiver is ready again (i_ready is high)
+// assign o_valid = valid_Q2 & i_ready;	
 
 endmodule
 
