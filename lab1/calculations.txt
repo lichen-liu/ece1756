@@ -2,6 +2,7 @@ baseline:
 max # of copies/device = 1518dsp/9 = 168.67 = 168
 max throughput for a full device = 44.8MHz / 1 * 168 = 7.5264e9
 max throughput/watt for a full device = 7.5264e9 / (1.96mW / 42MHz * 44.8MHz * 168) = 7.5264e9 / 351.232mW = 21.42857e9/W
+average toggle rate: 12.819 millions of transitions / sec
 
 pipelined:
 Resources for one circuit: 181-27 = 154ALMs + 9DSPs
@@ -12,13 +13,15 @@ Max. # of copies/device: 1518dsp/9 = 168.67 = 168
 Max. Throughput for a full device (computations/s): 425.17 MHz / 1 * 168 = 71.42856e9
 Dynamic power of one circuit @ 42 MHz: 0.41mW + 0.32mW + 1.04mW = 1.77mW
 Max. throughput/Watt for a full device: 71.42856e9 / (1.77mW / 42MHz * 425.17MHz * 168) = 23.72881e9/W
+average toggle rate: 10.933 millions of transitions / sec
 
 sharedhw:
-Resources for one circuit:
-Operating frequency:
-Critical path:
-Cycles per valid output:
-Max. # of copies/device:
-Max. Throughput for a full device (computations/s):
-Dynamic power of one circuit @ 42 MHz:
-Max. throughput/Watt for a full device:
+Resources for one circuit: 69-27 = 42ALMs + 2DSPs
+Operating frequency: 179.66MHz
+Critical path: LE-based multiplexer + 2x DSP mult
+Cycles per valid output: 10
+Max. # of copies/device: 1518dsp/2 = 759
+Max. Throughput for a full device (computations/s): 179.66MHz / 10 * 759 = 13.636194e9
+Dynamic power of one circuit @ 42 MHz: 0.36mW + 0.14mW + 0.10mW = 0.6mW
+Max. throughput/Watt for a full device: 13.636194e9 / (0.6mW / 42MHz * 179.66MHz * 759) = 7e9/W
+average toggle rate: 10.557 millions of transitions / sec
