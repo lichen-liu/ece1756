@@ -51,9 +51,206 @@ always_ff @ (posedge clk) begin
 end
 
 // Start of your code
+logic enable;
+assign enable = i_ready;
 
+// Logics for buffer of x
+localparam IMAGE_WIDTH = 512;
+localparam R_X_ROWS = 3; // Always store 3 rows of i_x
+localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
+
+// Registers
+// 0: [] [] [] [] [] [] [] []                         512 + 2
+// 1: [] [] [] [] [] [] [] []                         512 + 2
+// 2: [] [] [] [] [] [] [] []                         512 + 2
+logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0][R_X_COL_WIDTH-1:0]; // 2D array of registers for input pixels
+logic unsigned [1:0] r_x_row_idx; // Count from 0 to R_X_ROWS - 1 (incl)
+logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+
+// debug
+logic unsigned [31:0] i_x_counter;
+
+always_ff @ (posedge clk) begin
+	if(reset)begin
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			for(col = 0; col < R_X_COL_WIDTH; col = col + 1) begin
+				r_x[row][col] <= 0;
+			end
+		end
+		r_x_row_idx <= 0;
+		r_x_col_idx <= 0;
+
+		i_x_counter <= 0;
+	end else if(enable && i_valid) begin
+		if(r_x_col_idx == R_X_COL_WIDTH) begin
+			// Do the row shifting logic at the first input of the new row,
+			// rather than at the last input of the old row (will have conflict
+			// in writing old row and shifting old row)
+			// Shift r_x upwards by 1 row
+			r_x[0] <= r_x[1];
+			r_x[1] <= r_x[2];
+			// r_x[2] <= 0; // Don't need
+
+			// Load input pixel to a new row at idx 0 (R_X_COL_WIDTH implies 0)
+			r_x[2][0] <= i_x;
+
+			// Reset r_x_col_idx if necessary, continuing at idx 1.
+			// Skipping idx 0 because we are at idx 0 currently
+			r_x_col_idx <= 1;
+
+			// Increment r_x_row_idx only when r_x_row_idx is 0 or 1,
+			// so that r_x_row_idx will reach to 2 in steady state
+			if(r_x_row_idx < R_X_ROWS - 1) begin
+				r_x_row_idx <= r_x_row_idx + 1;
+			end
+		end else begin
+			r_x[2][r_x_col_idx] <= i_x;
+			// Increment r_x_col_idx
+			r_x_col_idx <= r_x_col_idx + 1;
+		end
+
+	end
+end
+
+// Logics for convolution core
+// Registers
+logic unsigned [PIXEL_DATAW-1:0] r_y;
+logic r_y_valid;
+
+// Computation
+logic unsigned [9:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+always_comb begin
+	if (r_x_col_idx >= FILTER_SIZE) begin
+		adjusted_r_x_col_idx = r_x_col_idx;
+	end else begin
+		adjusted_r_x_col_idx = FILTER_SIZE;
+	end
+end
+logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
+
+// Multiplication
+genvar gen_i, gen_j, gen_counter;
+generate
+	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin
+		for(gen_j = 1; gen_j < FILTER_SIZE + 1; gen_j = gen_j + 1) begin
+			mult8x8 m (
+				.i_filter(r_f[gen_i][FILTER_SIZE - gen_j]),
+				.i_pixel(r_x[gen_i][adjusted_r_x_col_idx - gen_j]),
+				.o_res(products[gen_i * FILTER_SIZE + gen_j - 1])
+			);
+		end
+	end
+endgenerate
+
+// Reduction tree
+logic signed [2*PIXEL_DATAW-1:0] sums [FILTER_SIZE*FILTER_SIZE-1-1:0];
+add16p16 a01(
+	.i_a(products[0]),
+	.i_b(products[1]),
+	.o_res(sums[0])
+);
+add16p16 a23(
+	.i_a(products[2]),
+	.i_b(products[3]),
+	.o_res(sums[1])
+);
+add16p16 a45(
+	.i_a(products[4]),
+	.i_b(products[5]),
+	.o_res(sums[2])
+);
+add16p16 a67(
+	.i_a(products[6]),
+	.i_b(products[7]),
+	.o_res(sums[3])
+);
+add16p16 a0123(
+	.i_a(sums[0]),
+	.i_b(sums[1]),
+	.o_res(sums[4])
+);
+add16p16 a4567(
+	.i_a(sums[2]),
+	.i_b(sums[3]),
+	.o_res(sums[5])
+);
+add16p16 a01234567(
+	.i_a(sums[4]),
+	.i_b(sums[5]),
+	.o_res(sums[6])
+);
+add16p16 a012345678(
+	.i_a(sums[6]),
+	.i_b(products[8]),
+	.o_res(sums[7])
+);
+logic unsigned [PIXEL_DATAW-1:0] y;
+always_comb begin
+	if(sums[7]>255) begin
+		y = 255;
+	end else if (sums[7]<0) begin
+		y = 0;
+	end else begin
+		y = sums[7][PIXEL_DATAW-1:0];
+	end
+end
+
+// Output logics
+
+always_ff @ (posedge clk) begin
+	if(reset) begin
+		r_y <= 0;
+		r_y_valid <= 0;
+	end else if(enable) begin
+		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
+		if(r_x_col_idx >= FILTER_SIZE && r_x_row_idx == R_X_ROWS - 1) begin
+			r_y <= y;
+			r_y_valid <= 1;
+		end else begin
+			r_y <= 0;
+			r_y_valid <= 0;
+		end
+	end
+end
+
+// Logics for output interface
+assign o_y = r_y;
+// Ready for inputs as long as receiver is ready for outputs
+assign o_ready = i_ready;
+assign o_valid = r_y_valid & i_ready;
 
 // End of your code
 
 endmodule
 
+/*******************************************************************************************/
+
+// Multiplier module for 8x8 multiplications
+module mult8x8 (
+	input signed [7:0] i_filter,
+	input unsigned [7:0] i_pixel,
+	output signed [15:0] o_res
+);
+
+logic signed[15:0] result;
+
+always_comb begin
+	result = i_filter * i_pixel;
+end
+
+assign o_res = result;
+
+endmodule
+
+/*******************************************************************************************/
+
+// Adder module for 16+16 additions
+module add16p16 (
+	input signed [15:0] i_a,
+	input signed [15:0] i_b,
+	output signed [15:0] o_res
+);
+
+assign o_res = i_a + i_b;
+
+endmodule
