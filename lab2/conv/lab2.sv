@@ -79,7 +79,7 @@ always_ff @ (posedge clk) begin
 		end
 		r_x_row_idx <= 0;
 		r_x_col_idx <= 0;
-
+		// debug
 		i_x_counter <= 0;
 	end else if(enable && i_valid) begin
 		if(r_x_col_idx == R_X_COL_WIDTH) begin
@@ -108,7 +108,8 @@ always_ff @ (posedge clk) begin
 			// Increment r_x_col_idx
 			r_x_col_idx <= r_x_col_idx + 1;
 		end
-
+		// debug
+		i_x_counter <= i_x_counter + 1; 
 	end
 end
 
@@ -131,8 +132,12 @@ logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
 // Multiplication
 genvar gen_i, gen_j, gen_counter;
 generate
-	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin
-		for(gen_j = 1; gen_j < FILTER_SIZE + 1; gen_j = gen_j + 1) begin
+	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin: mult_row
+		for(gen_j = 1; gen_j < FILTER_SIZE + 1; gen_j = gen_j + 1) begin: mult_col
+			// debug
+			logic unsigned [9:0] mult_pixel_j;
+			assign mult_pixel_j = adjusted_r_x_col_idx - gen_j;
+
 			mult8x8 m (
 				.i_filter(r_f[gen_i][FILTER_SIZE - gen_j]),
 				.i_pixel(r_x[gen_i][adjusted_r_x_col_idx - gen_j]),
@@ -197,15 +202,22 @@ end
 
 // Output logics
 
+// debug
+logic unsigned [31:0] o_y_counter;
+
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
 		r_y_valid <= 0;
+		// debug
+		o_y_counter <= 0;
 	end else if(enable) begin
 		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
 		if(r_x_col_idx >= FILTER_SIZE && r_x_row_idx == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
+			// debug
+			o_y_counter <= o_y_counter + 1;
 		end else begin
 			r_y <= 0;
 			r_y_valid <= 0;
@@ -232,13 +244,12 @@ module mult8x8 (
 	output signed [15:0] o_res
 );
 
-logic signed[15:0] result;
+// Signed x unsigned gets unsigned, which is not what we intend.
+// So convert unsigned to signed by treating unsigned number as positive (by adding a 0 to msb)
+logic signed [8:0] i_pixel_signed;
+assign i_pixel_signed = {1'b0, i_pixel};
 
-always_comb begin
-	result = i_filter * i_pixel;
-end
-
-assign o_res = result;
+assign o_res = i_filter * i_pixel_signed;
 
 endmodule
 
