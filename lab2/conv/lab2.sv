@@ -55,31 +55,50 @@ end
 logic enable;
 assign enable = i_ready;
 
+logic r_i_valid;
+always_ff @(posedge clk) begin
+	if(reset) begin
+		r_i_valid <= 0;
+	end else if (enable) begin
+		r_i_valid <= i_valid;
+	end
+end
+
 // Logics for buffer of x
 localparam IMAGE_WIDTH = 512;
 localparam R_X_ROWS = 3; // Always store 3 rows of i_x
 localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
+localparam R_X_SIZE = R_X_ROWS * R_X_COL_WIDTH;
 
 // Registers
 // 0: [] [] [] [] [] [] [] []                         512 + 2
 // 1: [] [] [] [] [] [] [] []                         512 + 2
 // 2: [] [] [] [] [] [] [] []                         512 + 2
-logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0][R_X_COL_WIDTH-1:0]; // 2D array of registers for input pixels
+logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_SIZE-1:0]; // 1D array of registers for input pixels, row major
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
 
+function automatic logic[10:0] r_x_linear_idx (logic[1:0] physical_row_idx, logic[9:0] col_idx);
+	if(physical_row_idx == 0) begin
+		r_x_linear_idx = col_idx;
+	end	else if (physical_row_idx == 1) begin
+		r_x_linear_idx = col_idx + R_X_COL_WIDTH;
+	end else if (physical_row_idx == 2) begin
+		r_x_linear_idx = col_idx + R_X_COL_WIDTH + R_X_COL_WIDTH;
+	end else begin
+		r_x_linear_idx = 0;
+	end
+endfunction
 
 	/// debug
 	logic unsigned [31:0] i_x_counter;
 
 always_ff @ (posedge clk) begin
-	if(reset)begin
-		for(row = 0; row < R_X_ROWS; row = row + 1) begin
-			for(col = 0; col < R_X_COL_WIDTH; col = col + 1) begin
-				r_x[row][col] <= 0;
-			end
+	if(reset) begin
+		for(i = 0; i < R_X_SIZE; i = i + 1) begin
+			r_x[i] <= 0;
 		end
 		r_x_row_logical_idx <= 0;
 		r_x_col_idx <= 0;
@@ -102,7 +121,7 @@ always_ff @ (posedge clk) begin
 
 			// Load input pixel to a new row at the current logical idx 0 (R_X_COL_WIDTH implies 0),
 			// which would be discarded, then reused/overwritten as the new logical idx 2 in the next cycle
-			r_x[r_x_row_logical_to_physical_index[0]][0] <= i_x;
+			r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[0], 0)] <= i_x;
 
 			// Reset r_x_col_idx if necessary, continuing at idx 1.
 			// Skipping idx 0 because we are at idx 0 currently
@@ -115,7 +134,7 @@ always_ff @ (posedge clk) begin
 			end
 		end else begin
 			// Load data at logical idx 2
-			r_x[r_x_row_logical_to_physical_index[R_X_ROWS-1]][r_x_col_idx] <= i_x;
+			r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[R_X_ROWS-1], r_x_col_idx)] <= i_x;
 			// Increment r_x_col_idx
 			r_x_col_idx <= r_x_col_idx + 1;
 		end
@@ -151,7 +170,7 @@ generate
 
 			mult8x8 m (
 				.i_filter(r_f[gen_i][FILTER_SIZE - gen_j]),
-				.i_pixel(r_x[r_x_row_logical_to_physical_index[gen_i]][adjusted_r_x_col_idx - gen_j]),
+				.i_pixel(r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[gen_i], adjusted_r_x_col_idx - gen_j)]),
 				.o_res(products[gen_i * FILTER_SIZE + gen_j - 1])
 			);
 		end
@@ -224,7 +243,7 @@ always_ff @ (posedge clk) begin
 			o_y_counter <= 0;
 	end else if(enable) begin
 		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
-		if(r_x_col_idx >= FILTER_SIZE && r_x_row_logical_idx == R_X_ROWS - 1) begin
+		if(r_i_valid && r_x_col_idx >= FILTER_SIZE && r_x_row_logical_idx == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
 				/// debug
