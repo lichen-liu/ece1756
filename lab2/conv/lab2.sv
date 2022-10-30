@@ -64,7 +64,6 @@ assign enable = i_ready;
 localparam IMAGE_WIDTH = 512;
 localparam R_X_ROWS = 3; // Always store 3 rows of i_x
 localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
-// localparam R_X_SIZE = R_X_ROWS * R_X_COL_WIDTH;
 
 
 // Wrap as RAM
@@ -97,23 +96,10 @@ end
 // 0: [] [] [] [] [] [] [] []                         512 + 2
 // 1: [] [] [] [] [] [] [] []                         512 + 2
 // 2: [] [] [] [] [] [] [] []                         512 + 2
-// logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_SIZE-1:0]; // 1D array of registers for input pixels, row major
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
-
-// function automatic logic[10:0] r_x_linear_idx (logic[1:0] physical_row_idx, logic[9:0] col_idx);
-// 	if(physical_row_idx == 0) begin
-// 		r_x_linear_idx = col_idx;
-// 	end	else if (physical_row_idx == 1) begin
-// 		r_x_linear_idx = col_idx + R_X_COL_WIDTH;
-// 	end else if (physical_row_idx == 2) begin
-// 		r_x_linear_idx = col_idx + R_X_COL_WIDTH + R_X_COL_WIDTH;
-// 	end else begin
-// 		r_x_linear_idx = 0;
-// 	end
-// endfunction
 
 // INGRESS: Stage -1
 always_ff @ (posedge clk) begin
