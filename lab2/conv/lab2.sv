@@ -55,14 +55,10 @@ end
 logic enable;
 assign enable = i_ready;
 
-logic r_i_valid;
-always_ff @(posedge clk) begin
-	if(reset) begin
-		r_i_valid <= 0;
-	end else if (enable) begin
-		r_i_valid <= i_valid;
-	end
-end
+// **********************
+// INGRESS
+// **********************
+// If pipelined, need to pipeline i_valid
 
 // Logics for buffer of x
 localparam IMAGE_WIDTH = 512;
@@ -93,7 +89,7 @@ function automatic logic[10:0] r_x_linear_idx (logic[1:0] physical_row_idx, logi
 endfunction
 
 
-// Stage 0
+// IN: Stage 0
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		for(i = 0; i < R_X_SIZE; i = i + 1) begin
@@ -137,6 +133,10 @@ always_ff @ (posedge clk) begin
 	end
 end
 
+// **********************
+// EGRESS
+// **********************
+
 // Logics for convolution core
 // Registers
 logic unsigned [PIXEL_DATAW-1:0] r_y;
@@ -154,14 +154,33 @@ end
 logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
 
 // Multiplication
+logic unsigned [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0][FILTER_SIZE-1:0];
+// OUT: Stage 0
+always_ff @(posedge clk) begin
+	if(reset) begin
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			for(col = 0; col < FILTER_SIZE; col = col + 1) begin
+				r_mult_i_pixel[row][col] <= 0;
+			end
+		end
+	end else if (enable) begin
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			for(col = 0; col < FILTER_SIZE; col = col + 1) begin
+				r_mult_i_pixel[row][col] <= r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[row], adjusted_r_x_col_idx - (col+1))];
+			end
+		end
+	end
+end
+
 genvar gen_i, gen_j;
 generate
 	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin: mult_row
-		for(gen_j = 1; gen_j < FILTER_SIZE + 1; gen_j = gen_j + 1) begin: mult_col
+		for(gen_j = 0; gen_j < FILTER_SIZE; gen_j = gen_j + 1) begin: mult_col
 			mult8x8 m (
-				.i_filter(r_f[gen_i][FILTER_SIZE - gen_j]),
-				.i_pixel(r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[gen_i], adjusted_r_x_col_idx - gen_j)]),
-				.o_res(products[gen_i * FILTER_SIZE + gen_j - 1])
+				.i_filter(r_f[gen_i][FILTER_SIZE - (gen_j+1)]),
+				// .i_pixel(r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[gen_i], adjusted_r_x_col_idx - (gen_j+1))]),
+				.i_pixel(r_mult_i_pixel[gen_i][gen_j]),
+				.o_res(products[gen_i * FILTER_SIZE + gen_j])
 			);
 		end
 	end
@@ -220,16 +239,25 @@ always_comb begin
 	end
 end
 
-// Output logics
-
-// Stage 1
+// Output interface logics
+// Pipeline registers for egress
+localparam NUM_OUT_STAGE = 1;
+logic unsigned [NUM_OUT_STAGE-1:0] [9:0] r_x_col_idx_opipelined;
+logic unsigned [NUM_OUT_STAGE-1:0] [1:0] r_x_row_logical_idx_opipelined;
+// OUT: Stage 1
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
 		r_y_valid <= 0;
+		r_x_col_idx_opipelined <= 0;
+		r_x_row_logical_idx_opipelined <= 0;
 	end else if(enable) begin
+		r_x_col_idx_opipelined <= r_x_col_idx;
+		r_x_row_logical_idx_opipelined <= r_x_row_logical_idx;
+
 		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
-		if(r_i_valid && r_x_col_idx >= FILTER_SIZE && r_x_row_logical_idx == R_X_ROWS - 1) begin
+		if(r_x_col_idx_opipelined[NUM_OUT_STAGE-1] >= FILTER_SIZE &&
+			r_x_row_logical_idx_opipelined[NUM_OUT_STAGE-1] == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
 		end else begin
@@ -239,7 +267,6 @@ always_ff @ (posedge clk) begin
 	end
 end
 
-// Logics for output interface
 assign o_y = r_y;
 // Ready for inputs as long as receiver is ready for outputs
 assign o_ready = i_ready;
