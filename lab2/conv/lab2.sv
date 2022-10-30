@@ -64,72 +64,131 @@ assign enable = i_ready;
 localparam IMAGE_WIDTH = 512;
 localparam R_X_ROWS = 3; // Always store 3 rows of i_x
 localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
-localparam R_X_SIZE = R_X_ROWS * R_X_COL_WIDTH;
+// localparam R_X_SIZE = R_X_ROWS * R_X_COL_WIDTH;
+
+
+// Wrap as RAM
+// 0: [] [] [] [] [] [] [] []                         512 + 2
+// 1: [] [] [] [] [] [] [] []                         512 + 2
+// 2: [] [] [] [] [] [] [] []                         512 + 2
+logic unsigned [R_X_COL_WIDTH-1:0] [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0]; // 2D array of registers for input pixels, row major
+// RAM input, unregistered
+logic [10:0] r_x_write_addr [R_X_ROWS-1:0];
+logic r_x_write_enable [R_X_ROWS-1:0];
+logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
+logic [10:0] r_x_read_addr [R_X_ROWS-1:0]; // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+// RAM output
+logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // registered, 3 words (3 x 8)
+always_ff @ (posedge clk) begin
+	for(row = 0; row < R_X_ROWS; row = row + 1) begin
+		if(reset) begin
+			r_x[row] <= 0;
+			r_x_read_data[row] <= 0;
+		end else if(enable) begin
+			r_x_read_data[row] <= r_x[row][r_x_read_addr[row] +: FILTER_SIZE];
+			if(r_x_write_enable[row]) begin
+				r_x[row][r_x_write_addr[row]] <= r_x_write_data[row];
+			end
+		end
+	end
+end
 
 // Registers
 // 0: [] [] [] [] [] [] [] []                         512 + 2
 // 1: [] [] [] [] [] [] [] []                         512 + 2
 // 2: [] [] [] [] [] [] [] []                         512 + 2
-logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_SIZE-1:0]; // 1D array of registers for input pixels, row major
+// logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_SIZE-1:0]; // 1D array of registers for input pixels, row major
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
 
-function automatic logic[10:0] r_x_linear_idx (logic[1:0] physical_row_idx, logic[9:0] col_idx);
-	if(physical_row_idx == 0) begin
-		r_x_linear_idx = col_idx;
-	end	else if (physical_row_idx == 1) begin
-		r_x_linear_idx = col_idx + R_X_COL_WIDTH;
-	end else if (physical_row_idx == 2) begin
-		r_x_linear_idx = col_idx + R_X_COL_WIDTH + R_X_COL_WIDTH;
-	end else begin
-		r_x_linear_idx = 0;
-	end
-endfunction
+// function automatic logic[10:0] r_x_linear_idx (logic[1:0] physical_row_idx, logic[9:0] col_idx);
+// 	if(physical_row_idx == 0) begin
+// 		r_x_linear_idx = col_idx;
+// 	end	else if (physical_row_idx == 1) begin
+// 		r_x_linear_idx = col_idx + R_X_COL_WIDTH;
+// 	end else if (physical_row_idx == 2) begin
+// 		r_x_linear_idx = col_idx + R_X_COL_WIDTH + R_X_COL_WIDTH;
+// 	end else begin
+// 		r_x_linear_idx = 0;
+// 	end
+// endfunction
 
-
-// IN: Stage 0
+// INGRESS: Stage -1
 always_ff @ (posedge clk) begin
 	if(reset) begin
-		for(i = 0; i < R_X_SIZE; i = i + 1) begin
-			r_x[i] <= 0;
-		end
 		r_x_row_logical_idx <= 0;
 		r_x_col_idx <= 0;
 		
 		for(i = 0; i < R_X_ROWS; i = i + 1) begin
 			r_x_row_logical_to_physical_index[i] <= i;
 		end
-	end else if(enable && i_valid) begin
-		if(r_x_col_idx == R_X_COL_WIDTH) begin
-			// Do the row shifting logic at the first input of the new row,
-			// rather than at the last input of the old row (will have conflict
-			// in writing old row and shifting old row)
 
-			// Instead of shifting the actual data, shift the mapping from logical index to physical index
-			// Shift the mapping, upward (idx[0]->idx[2])
-			r_x_row_logical_to_physical_index <= {r_x_row_logical_to_physical_index[0], r_x_row_logical_to_physical_index[R_X_ROWS-1:1]};
-
-			// Load input pixel to a new row at the current logical idx 0 (R_X_COL_WIDTH implies 0),
-			// which would be discarded, then reused/overwritten as the new logical idx 2 in the next cycle
-			r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[0], 0)] <= i_x;
-
-			// Reset r_x_col_idx if necessary, continuing at idx 1.
-			// Skipping idx 0 because we are at idx 0 currently
-			r_x_col_idx <= 1;
-
-			// Increment r_x_row_logical_idx only when r_x_row_logical_idx is 0 or 1,
-			// so that r_x_row_logical_idx will reach to 2 in steady state
-			if(r_x_row_logical_idx < R_X_ROWS - 1) begin
-				r_x_row_logical_idx <= r_x_row_logical_idx + 1;
-			end
-		end else begin
-			// Load data at logical idx 2
-			r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[R_X_ROWS-1], r_x_col_idx)] <= i_x;
-			// Increment r_x_col_idx
-			r_x_col_idx <= r_x_col_idx + 1;
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			r_x_write_addr[row] <= 0;
+			r_x_write_data[row] <= 0;
+			r_x_write_enable[row] <= 0;
 		end
+	end else if (enable) begin
+		// Do not write by default
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			r_x_write_addr[row] <= 0;
+			r_x_write_data[row] <= 0;
+			r_x_write_enable[row] <= 0;
+		end
+	 	if(i_valid) begin
+			if(r_x_col_idx == R_X_COL_WIDTH) begin
+				// Load input pixel to a new row at the current logical idx 0 (R_X_COL_WIDTH implies 0),
+				// which would be discarded, then reused/overwritten as the new logical idx 2 in the next cycle
+				r_x_write_addr[r_x_row_logical_to_physical_index[0]] <= 0;
+				r_x_write_data[r_x_row_logical_to_physical_index[0]] <= i_x;
+				r_x_write_enable[r_x_row_logical_to_physical_index[0]] <= 1;
+
+				// Do the row shifting logic at the first input of the new row,
+				// rather than at the last input of the old row (will have conflict
+				// in writing old row and shifting old row)
+
+				// Instead of shifting the actual data, shift the mapping from logical index to physical index
+				// Shift the mapping, upward (idx[0]->idx[2])
+				r_x_row_logical_to_physical_index <= {r_x_row_logical_to_physical_index[0], r_x_row_logical_to_physical_index[R_X_ROWS-1:1]};
+
+				// Reset r_x_col_idx_ipipelined if necessary, continuing at idx 1.
+				// Skipping idx 0 because we are at idx 0 currently
+				r_x_col_idx <= 1;
+
+				// Increment r_x_row_logical_idx_ipipelined only when r_x_row_logical_idx_ipipelined is 0 or 1,
+				// so that r_x_row_logical_idx_ipipelined will reach to 2 in steady state
+				if(r_x_row_logical_idx < R_X_ROWS - 1) begin
+					r_x_row_logical_idx <= r_x_row_logical_idx + 1;
+				end
+			end else begin
+				// Load data at logical idx 2
+				r_x_write_addr[r_x_row_logical_to_physical_index[R_X_ROWS-1]] <= r_x_col_idx;
+				r_x_write_data[r_x_row_logical_to_physical_index[R_X_ROWS-1]] <= i_x;
+				r_x_write_enable[r_x_row_logical_to_physical_index[R_X_ROWS-1]] <= 1;
+
+				// Increment r_x_col_idx_ipipelined
+				r_x_col_idx <= r_x_col_idx + 1;
+			end
+		end
+	end
+end
+
+// Pipeline registers for ingress
+logic unsigned [1:0] r_x_row_logical_idx_ipipelined;
+logic unsigned [9:0] r_x_col_idx_ipipelined;
+logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_ipipelined;
+// INGRESS: Stage 0, to match registered RAM write
+always_ff @ (posedge clk) begin
+	if(reset) begin
+		r_x_row_logical_idx_ipipelined <= 0;
+		r_x_col_idx_ipipelined <= 0;
+		r_x_row_logical_to_physical_index_ipipelined <= 0;
+	end else if (enable) begin
+		r_x_row_logical_idx_ipipelined <= r_x_row_logical_idx;
+		r_x_col_idx_ipipelined <= r_x_col_idx;
+		r_x_row_logical_to_physical_index_ipipelined <= r_x_row_logical_to_physical_index;
 	end
 end
 
@@ -137,39 +196,49 @@ end
 // EGRESS
 // **********************
 
+// Pipeline registers for egress
+localparam NUM_EGRESS_STAGE = 1;
+logic unsigned [NUM_EGRESS_STAGE-1:0] [9:0] r_x_col_idx_epipelined;
+logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
+logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined;
+always_ff @ (posedge clk) begin
+	if(reset) begin
+		r_x_col_idx_epipelined <= 0;
+		r_x_row_logical_idx_epipelined <= 0;
+		r_x_row_logical_to_physical_index_epipelined <= 0;
+	end else if(enable) begin
+		r_x_col_idx_epipelined <= /*{r_x_col_idx_epipelined[NUM_EGRESS_STAGE-2:0],*/ r_x_col_idx_ipipelined;
+		r_x_row_logical_idx_epipelined <= /*{r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-2:0],*/ r_x_row_logical_idx_ipipelined;
+		r_x_row_logical_to_physical_index_epipelined <= r_x_row_logical_to_physical_index_ipipelined;
+	end
+end
+
 // Logics for convolution core
 // Registers
 logic unsigned [PIXEL_DATAW-1:0] r_y;
 logic r_y_valid;
 
 // Computation
+
+// Multiplication
+logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0];
+// EGRESS: Stage -1
 logic unsigned [9:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 always_comb begin
-	if (r_x_col_idx >= FILTER_SIZE) begin
-		adjusted_r_x_col_idx = r_x_col_idx;
+	if (r_x_col_idx_ipipelined >= FILTER_SIZE) begin
+		adjusted_r_x_col_idx = r_x_col_idx_ipipelined;
 	end else begin
 		adjusted_r_x_col_idx = FILTER_SIZE;
 	end
 end
 logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
-
-// Multiplication
-logic unsigned [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0][FILTER_SIZE-1:0];
-// OUT: Stage 0
-always_ff @(posedge clk) begin
-	if(reset) begin
-		for(row = 0; row < R_X_ROWS; row = row + 1) begin
-			for(col = 0; col < FILTER_SIZE; col = col + 1) begin
-				r_mult_i_pixel[row][col] <= 0;
-			end
-		end
-	end else if (enable) begin
-		for(row = 0; row < R_X_ROWS; row = row + 1) begin
-			for(col = 0; col < FILTER_SIZE; col = col + 1) begin
-				r_mult_i_pixel[row][col] <= r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[row], adjusted_r_x_col_idx - (col+1))];
-			end
-		end
-	end
+always_comb begin
+		r_x_read_addr[0] = adjusted_r_x_col_idx - FILTER_SIZE;
+		r_x_read_addr[1] = adjusted_r_x_col_idx - FILTER_SIZE;
+		r_x_read_addr[2] = adjusted_r_x_col_idx - FILTER_SIZE;
+		r_mult_i_pixel[0] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][0]];
+		r_mult_i_pixel[1] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][1]];
+		r_mult_i_pixel[2] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][2]];
 end
 
 genvar gen_i, gen_j;
@@ -178,7 +247,6 @@ generate
 		for(gen_j = 0; gen_j < FILTER_SIZE; gen_j = gen_j + 1) begin: mult_col
 			mult8x8 m (
 				.i_filter(r_f[gen_i][FILTER_SIZE - (gen_j+1)]),
-				// .i_pixel(r_x[r_x_linear_idx(r_x_row_logical_to_physical_index[gen_i], adjusted_r_x_col_idx - (gen_j+1))]),
 				.i_pixel(r_mult_i_pixel[gen_i][gen_j]),
 				.o_res(products[gen_i * FILTER_SIZE + gen_j])
 			);
@@ -240,28 +308,19 @@ always_comb begin
 end
 
 // Output interface logics
-// Pipeline registers for egress
-localparam NUM_OUT_STAGE = 1;
-logic unsigned [NUM_OUT_STAGE-1:0] [9:0] r_x_col_idx_opipelined;
-logic unsigned [NUM_OUT_STAGE-1:0] [1:0] r_x_row_logical_idx_opipelined;
-// OUT: Stage 1
+// EGRESS: Stage 0
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
 		r_y_valid <= 0;
-		r_x_col_idx_opipelined <= 0;
-		r_x_row_logical_idx_opipelined <= 0;
 	end else if(enable) begin
-		r_x_col_idx_opipelined <= r_x_col_idx;
-		r_x_row_logical_idx_opipelined <= r_x_row_logical_idx;
-
-		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
-		if(r_x_col_idx_opipelined[NUM_OUT_STAGE-1] >= FILTER_SIZE &&
-			r_x_row_logical_idx_opipelined[NUM_OUT_STAGE-1] == R_X_ROWS - 1) begin
+		// By the time r_x_col_idx_ipipelined is 3, pixel at idx 2 is already written with i_x
+		if(r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] >= FILTER_SIZE &&
+			r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-1] == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
 		end else begin
-			r_y <= 0;
+			r_y <= y;
 			r_y_valid <= 0;
 		end
 	end
