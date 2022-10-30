@@ -19,13 +19,14 @@ module lab2 (
 localparam FILTER_SIZE = 3;	// Convolution filter dimension (i.e. 3x3)
 localparam PIXEL_DATAW = 8;	// Bit width of image pixels and filter coefficients (i.e. 8 bits)
 
+integer col, row, i; // variables to use in the for loop
+
 // The following code is intended to show you an example of how to use paramaters and
 // for loops in SytemVerilog. It also arrages the input filter coefficients for you
 // into a nicely-arranged and easy-to-use 2D array of registers. However, you can ignore
 // this code and not use it if you wish to.
 
 logic signed [PIXEL_DATAW-1:0] r_f [FILTER_SIZE-1:0][FILTER_SIZE-1:0]; // 2D array of registers for filter coefficients
-integer col, row; // variables to use in the for loop
 always_ff @ (posedge clk) begin
 	// If reset signal is high, set all the filter coefficient registers to zeros
 	// We're using a synchronous reset, which is recommended style for recent FPGA architectures
@@ -64,11 +65,14 @@ localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
 // 1: [] [] [] [] [] [] [] []                         512 + 2
 // 2: [] [] [] [] [] [] [] []                         512 + 2
 logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0][R_X_COL_WIDTH-1:0]; // 2D array of registers for input pixels
-logic unsigned [1:0] r_x_row_idx; // Count from 0 to R_X_ROWS - 1 (incl)
+logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+// Count from 0 to R_X_ROWS - 1 (incl), physical order
+logic unsigned [1:0] r_x_row_logical_to_physical_index[R_X_ROWS-1:0];
 
-// debug
-logic unsigned [31:0] i_x_counter;
+
+	/// debug
+	logic unsigned [31:0] i_x_counter;
 
 always_ff @ (posedge clk) begin
 	if(reset)begin
@@ -77,39 +81,46 @@ always_ff @ (posedge clk) begin
 				r_x[row][col] <= 0;
 			end
 		end
-		r_x_row_idx <= 0;
+		r_x_row_logical_idx <= 0;
 		r_x_col_idx <= 0;
-		// debug
-		i_x_counter <= 0;
+		
+		for(i = 0; i < R_X_ROWS; i = i + 1) begin
+			r_x_row_logical_to_physical_index[i] <= i;
+		end
+
+			/// debug
+			i_x_counter <= 0;
 	end else if(enable && i_valid) begin
 		if(r_x_col_idx == R_X_COL_WIDTH) begin
 			// Do the row shifting logic at the first input of the new row,
 			// rather than at the last input of the old row (will have conflict
 			// in writing old row and shifting old row)
-			// Shift r_x upwards by 1 row
-			r_x[0] <= r_x[1];
-			r_x[1] <= r_x[2];
-			// r_x[2] <= 0; // Don't need
 
-			// Load input pixel to a new row at idx 0 (R_X_COL_WIDTH implies 0)
-			r_x[2][0] <= i_x;
+			// Instead of shifting the actual data, shift the mapping from logical index to physical index
+			// Shift the mapping, upward (idx[0]->idx[2])
+			r_x_row_logical_to_physical_index <= {r_x_row_logical_to_physical_index[0], r_x_row_logical_to_physical_index[R_X_ROWS-1:1]};
+
+			// Load input pixel to a new row at the current logical idx 0 (R_X_COL_WIDTH implies 0),
+			// which would be discarded, then reused/overwritten as the new logical idx 2 in the next cycle
+			r_x[r_x_row_logical_to_physical_index[0]][0] <= i_x;
 
 			// Reset r_x_col_idx if necessary, continuing at idx 1.
 			// Skipping idx 0 because we are at idx 0 currently
 			r_x_col_idx <= 1;
 
-			// Increment r_x_row_idx only when r_x_row_idx is 0 or 1,
-			// so that r_x_row_idx will reach to 2 in steady state
-			if(r_x_row_idx < R_X_ROWS - 1) begin
-				r_x_row_idx <= r_x_row_idx + 1;
+			// Increment r_x_row_logical_idx only when r_x_row_logical_idx is 0 or 1,
+			// so that r_x_row_logical_idx will reach to 2 in steady state
+			if(r_x_row_logical_idx < R_X_ROWS - 1) begin
+				r_x_row_logical_idx <= r_x_row_logical_idx + 1;
 			end
 		end else begin
-			r_x[2][r_x_col_idx] <= i_x;
+			// Load data at logical idx 2
+			r_x[r_x_row_logical_to_physical_index[R_X_ROWS-1]][r_x_col_idx] <= i_x;
 			// Increment r_x_col_idx
 			r_x_col_idx <= r_x_col_idx + 1;
 		end
-		// debug
-		i_x_counter <= i_x_counter + 1; 
+			/// debug
+			i_x_counter <= i_x_counter + 1; 
 	end
 end
 
@@ -130,17 +141,17 @@ end
 logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
 
 // Multiplication
-genvar gen_i, gen_j, gen_counter;
+genvar gen_i, gen_j;
 generate
 	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin: mult_row
 		for(gen_j = 1; gen_j < FILTER_SIZE + 1; gen_j = gen_j + 1) begin: mult_col
-			// debug
-			logic unsigned [9:0] mult_pixel_j;
-			assign mult_pixel_j = adjusted_r_x_col_idx - gen_j;
+				/// debug
+				logic unsigned [9:0] mult_pixel_j;
+				assign mult_pixel_j = adjusted_r_x_col_idx - gen_j;
 
 			mult8x8 m (
 				.i_filter(r_f[gen_i][FILTER_SIZE - gen_j]),
-				.i_pixel(r_x[gen_i][adjusted_r_x_col_idx - gen_j]),
+				.i_pixel(r_x[r_x_row_logical_to_physical_index[gen_i]][adjusted_r_x_col_idx - gen_j]),
 				.o_res(products[gen_i * FILTER_SIZE + gen_j - 1])
 			);
 		end
@@ -202,22 +213,22 @@ end
 
 // Output logics
 
-// debug
-logic unsigned [31:0] o_y_counter;
+	/// debug
+	logic unsigned [31:0] o_y_counter;
 
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
 		r_y_valid <= 0;
-		// debug
-		o_y_counter <= 0;
+			/// debug
+			o_y_counter <= 0;
 	end else if(enable) begin
 		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
-		if(r_x_col_idx >= FILTER_SIZE && r_x_row_idx == R_X_ROWS - 1) begin
+		if(r_x_col_idx >= FILTER_SIZE && r_x_row_logical_idx == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
-			// debug
-			o_y_counter <= o_y_counter + 1;
+				/// debug
+				o_y_counter <= o_y_counter + 1;
 		end else begin
 			r_y <= 0;
 			r_y_valid <= 0;
