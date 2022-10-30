@@ -68,7 +68,7 @@ logic unsigned [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0][R_X_COL_WIDTH-1:0]; // 2D ar
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
-logic unsigned [1:0] r_x_row_logical_to_physical_index[R_X_ROWS-1:0];
+logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
 
 
 	/// debug
