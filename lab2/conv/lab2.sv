@@ -97,6 +97,7 @@ pixelram pixel_ram
 // 2: [] [] [] [] [] [] [] []                         512 + 2
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_read_addr_adjusted; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
 
@@ -105,6 +106,7 @@ always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_x_row_logical_idx <= 0;
 		r_x_col_idx <= 0;
+		r_x_col_idx_read_addr_adjusted <= 0;
 		
 		for(i = 0; i < R_X_ROWS; i = i + 1) begin
 			r_x_row_logical_to_physical_index[i] <= i;
@@ -122,6 +124,7 @@ always_ff @ (posedge clk) begin
 			r_x_write_data[row] <= 0;
 			r_x_write_enable[row] <= 0;
 		end
+		r_x_col_idx_read_addr_adjusted <= 0;
 	 	if(i_valid) begin
 			if(r_x_col_idx == R_X_COL_WIDTH) begin
 				// Load input pixel to a new row at the current logical idx 0 (R_X_COL_WIDTH implies 0),
@@ -155,6 +158,11 @@ always_ff @ (posedge clk) begin
 
 				// Increment r_x_col_idx
 				r_x_col_idx <= r_x_col_idx + 1;
+
+				// Increment r_x_col_idx_read_addr_adjusted
+				if (r_x_col_idx > FILTER_SIZE-2) begin
+					r_x_col_idx_read_addr_adjusted <= r_x_col_idx + 1 - FILTER_SIZE;
+				end
 			end
 		end
 	end
@@ -195,11 +203,7 @@ end
 
 // EGRESS: Stage -1
 always_comb begin
-	if (r_x_col_idx > FILTER_SIZE-1) begin
-		r_x_read_addr = r_x_col_idx - FILTER_SIZE;
-	end else begin
-		r_x_read_addr = 0;
-	end
+	r_x_read_addr = r_x_col_idx_read_addr_adjusted;
 end
 
 // EGRESS: Stage 0
