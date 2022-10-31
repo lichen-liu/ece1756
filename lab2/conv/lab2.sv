@@ -178,7 +178,7 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 8;
+localparam NUM_EGRESS_STAGE = 9;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
@@ -217,7 +217,7 @@ always_ff @ (posedge clk) begin
 end
 
 // Multiplication
-// EGRESS: Stage 1, 2
+// EGRESS: Stage 1, 2, 3, 4
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
 genvar gen_row;
 generate
@@ -236,7 +236,7 @@ generate
 endgenerate
 
 // Reduction tree
-// EGRESS: Stage 3, 4
+// EGRESS: Stage 5, 6
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
 always_ff @ (posedge clk) begin
@@ -256,7 +256,7 @@ logic signed [2*PIXEL_DATAW-1:0] sums_stage_2;
 always_comb begin
 	sums_stage_2 = sums_stage_1[0] + sums_stage_1[1];
 end
-// EGRESS: Stage 5
+// EGRESS: Stage 7
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_2_reg;
 always_ff @ (posedge clk) begin
 	if(enable)begin
@@ -276,7 +276,7 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 6
+// EGRESS: Stage 8
 logic unsigned [PIXEL_DATAW-1:0] r_y;
 logic r_y_valid;
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
@@ -350,9 +350,22 @@ always_ff @ (posedge clk) begin
 end
 
 // Pipeline 2
+logic signed [9:0] i_pixela01_reg_reg_reg;
+logic signed [8:0] i_pixelb_reg_reg_reg;
+logic signed [7:0] i_filtera_reg_reg_reg, i_filterb_reg_reg_reg;
 always_ff @ (posedge clk) begin
 	if(enable) begin
-		o_res <= i_pixela01_reg_reg * i_filtera_reg_reg + i_pixelb_reg_reg * i_filterb_reg_reg;
+		i_pixela01_reg_reg_reg <= i_pixela01_reg_reg;
+		i_pixelb_reg_reg_reg <= i_pixelb_reg_reg;
+		i_filtera_reg_reg_reg <= i_filtera_reg_reg;
+		i_filterb_reg_reg_reg <= i_filterb_reg_reg;
+	end
+end
+
+// Pipeline 3
+always_ff @ (posedge clk) begin
+	if(enable) begin
+		o_res <= i_pixela01_reg_reg_reg * i_filtera_reg_reg_reg + i_pixelb_reg_reg_reg * i_filterb_reg_reg_reg;
 	end
 end
 endmodule
