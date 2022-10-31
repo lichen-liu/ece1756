@@ -73,7 +73,7 @@ logic [R_X_COL_ADDR_WIDTH-1:0] r_x_write_addr [R_X_ROWS-1:0]; // 0..511+2 (10 bi
 logic r_x_write_enable [R_X_ROWS-1:0];
 logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
 // Registered inside module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
-logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr [R_X_ROWS-1:0];
+logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr;
 // RAM output
 logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 words (3 x 8)
 pixelram pixel_ram 
@@ -182,7 +182,7 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 2;
+localparam NUM_EGRESS_STAGE = 3;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
@@ -216,13 +216,10 @@ always_comb begin
 		adjusted_r_x_col_idx = FILTER_SIZE;
 	end
 end
-logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
-always_comb begin
-		r_x_read_addr[0] = adjusted_r_x_col_idx - FILTER_SIZE;
-		r_x_read_addr[1] = adjusted_r_x_col_idx - FILTER_SIZE;
-		r_x_read_addr[2] = adjusted_r_x_col_idx - FILTER_SIZE;
-end
 
+always_comb begin
+	r_x_read_addr = adjusted_r_x_col_idx - FILTER_SIZE;
+end
 // EGRESS: Stage 0
 always_ff @ (posedge clk) begin
 	for(row=0; row<R_X_ROWS; row=row+1) begin
@@ -234,6 +231,7 @@ always_ff @ (posedge clk) begin
 	end
 end
 
+logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
 genvar gen_i, gen_j;
 generate
 	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin: mult_row
@@ -248,60 +246,80 @@ generate
 endgenerate
 
 // Reduction tree
-logic signed [2*PIXEL_DATAW-1:0] sums [FILTER_SIZE*FILTER_SIZE-1-1:0];
+logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
 add16p16 a01(
 	.i_a(products[0]),
 	.i_b(products[1]),
-	.o_res(sums[0])
+	.o_res(sums_stage_0[0])
 );
 add16p16 a23(
 	.i_a(products[2]),
 	.i_b(products[3]),
-	.o_res(sums[1])
+	.o_res(sums_stage_0[1])
 );
 add16p16 a45(
 	.i_a(products[4]),
 	.i_b(products[5]),
-	.o_res(sums[2])
+	.o_res(sums_stage_0[2])
 );
 add16p16 a67(
 	.i_a(products[6]),
 	.i_b(products[7]),
-	.o_res(sums[3])
+	.o_res(sums_stage_0[3])
 );
+assign sums_stage_0[4] = products[8];
+// EGRESS: Stage 1
+logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
+always_ff @ (posedge clk) begin
+	if(reset) begin
+		sums_stage_0_reg <= 0;
+	end else if(enable) begin
+		sums_stage_0_reg <= sums_stage_0;
+	end
+end
+
+logic signed [2*PIXEL_DATAW-1:0] sums_stage_1 [2:0];
 add16p16 a0123(
-	.i_a(sums[0]),
-	.i_b(sums[1]),
-	.o_res(sums[4])
+	.i_a(sums_stage_0_reg[0]),
+	.i_b(sums_stage_0_reg[1]),
+	.o_res(sums_stage_1[0])
 );
 add16p16 a4567(
-	.i_a(sums[2]),
-	.i_b(sums[3]),
-	.o_res(sums[5])
+	.i_a(sums_stage_0_reg[2]),
+	.i_b(sums_stage_0_reg[3]),
+	.o_res(sums_stage_1[1])
 );
+assign sums_stage_1[2] = sums_stage_0_reg[4];
+
+logic signed [2*PIXEL_DATAW-1:0] sums_stage_2 [1:0];
 add16p16 a01234567(
-	.i_a(sums[4]),
-	.i_b(sums[5]),
-	.o_res(sums[6])
+	.i_a(sums_stage_1[0]),
+	.i_b(sums_stage_1[1]),
+	.o_res(sums_stage_2[0])
 );
+assign sums_stage_2[1] = sums_stage_1[2];
+
+logic signed [2*PIXEL_DATAW-1:0] sums_stage_3;
 add16p16 a012345678(
-	.i_a(sums[6]),
-	.i_b(products[8]),
-	.o_res(sums[7])
+	.i_a(sums_stage_2[0]),
+	.i_b(sums_stage_2[1]),
+	.o_res(sums_stage_3)
 );
+
+
 logic unsigned [PIXEL_DATAW-1:0] y;
 always_comb begin
-	if(sums[7]>255) begin
+	if(sums_stage_3>255) begin
 		y = 255;
-	end else if (sums[7]<0) begin
+	end else if (sums_stage_3<0) begin
 		y = 0;
 	end else begin
-		y = sums[7][PIXEL_DATAW-1:0];
+		y = sums_stage_3[PIXEL_DATAW-1:0];
 	end
 end
 
 // Output interface logics
-// EGRESS: Stage 1
+// EGRESS: Stage 2
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
 always_ff @ (posedge clk) begin
 	if(reset) begin
@@ -383,7 +401,7 @@ module pixelram #
 	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr [R_X_ROWS-1:0],
 	input i_write_enable [R_X_ROWS-1:0],
 	input unsigned [PIXEL_DATAW-1:0] i_write_data [R_X_ROWS-1:0],
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr [R_X_ROWS-1:0], // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 	// RAM output
 	output unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 words (3 x 8)
 );
@@ -403,7 +421,7 @@ module pixelram #
 				.i_write_addr(i_write_addr[gen_row]),
 				.i_write_enable(i_write_enable[gen_row]),
 				.i_write_data(i_write_data[gen_row]),
-				.i_read_addr(i_read_addr[gen_row]), // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+				.i_read_addr(i_read_addr), // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 				// RAM output
 				.o_read_data(o_read_data[gen_row]) // registered, 3 words (3 x 8)
 			);
