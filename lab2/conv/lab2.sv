@@ -178,7 +178,7 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 7;
+localparam NUM_EGRESS_STAGE = 6;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
@@ -202,67 +202,65 @@ always_comb begin
 	end
 end
 
-// EGRESS: Stage 0, 1
+// EGRESS: Stage 0
 logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0];
-logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel_reg [R_X_ROWS-1:0];
 always_ff @ (posedge clk) begin
 	for(row=0; row<R_X_ROWS; row=row+1) begin
 		if(enable) begin
 			r_mult_i_pixel[row] <= r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]];
-			r_mult_i_pixel_reg[row] <= r_mult_i_pixel[row];
 		end
 	end
 end
 
 // Multiplication
-// EGRESS: Stage 2, 3
+// EGRESS: Stage 1, 2
 logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
 mult8x8p8x8 m01 (
 	.clk(clk),
 	.enable(enable),
 	.i_filtera(r_f[0][0]),
-	.i_pixela(r_mult_i_pixel_reg[0][0]),
+	.i_pixela(r_mult_i_pixel[0][0]),
 	.i_filterb(r_f[0][1]),
-	.i_pixelb(r_mult_i_pixel_reg[0][1]),
+	.i_pixelb(r_mult_i_pixel[0][1]),
 	.o_res(sums_stage_0[0])
 );
 mult8x8p8x8 m23 (
 	.clk(clk),
 	.enable(enable),
 	.i_filtera(r_f[0][2]),
-	.i_pixela(r_mult_i_pixel_reg[0][2]),
+	.i_pixela(r_mult_i_pixel[0][2]),
 	.i_filterb(r_f[1][0]),
-	.i_pixelb(r_mult_i_pixel_reg[1][0]),
+	.i_pixelb(r_mult_i_pixel[1][0]),
 	.o_res(sums_stage_0[1])
 );
 mult8x8p8x8 m45 (
 	.clk(clk),
 	.enable(enable),
 	.i_filtera(r_f[1][1]),
-	.i_pixela(r_mult_i_pixel_reg[1][1]),
+	.i_pixela(r_mult_i_pixel[1][1]),
 	.i_filterb(r_f[1][2]),
-	.i_pixelb(r_mult_i_pixel_reg[1][2]),
+	.i_pixelb(r_mult_i_pixel[1][2]),
 	.o_res(sums_stage_0[2])
 );
 mult8x8p8x8 m67 (
 	.clk(clk),
 	.enable(enable),
 	.i_filtera(r_f[2][0]),
-	.i_pixela(r_mult_i_pixel_reg[2][0]),
+	.i_pixela(r_mult_i_pixel[2][0]),
 	.i_filterb(r_f[2][1]),
-	.i_pixelb(r_mult_i_pixel_reg[2][1]),
+	.i_pixelb(r_mult_i_pixel[2][1]),
 	.o_res(sums_stage_0[3])
 );
 mult8x8 m8 (
 	.clk(clk),
 	.enable(enable),
 	.i_filter(r_f[2][2]),
-	.i_pixel(r_mult_i_pixel_reg[2][2]),
+	.i_pixel(r_mult_i_pixel[2][2]),
 	.o_res(sums_stage_0[4])
 );
 
 // Reduction tree
-// EGRESS: Stage 4, 5
+// EGRESS: Stage 3, 4
 logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
 logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
 always_ff @ (posedge clk) begin
@@ -312,7 +310,7 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 6
+// EGRESS: Stage 5
 logic unsigned [PIXEL_DATAW-1:0] r_y;
 logic r_y_valid;
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
