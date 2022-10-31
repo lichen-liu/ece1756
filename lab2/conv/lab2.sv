@@ -68,11 +68,12 @@ localparam R_X_COL_ADDR_WIDTH = 10;
 
 
 // Pixel RAM
-// RAM input, need to be registered
+// RAM input, need to be registered except for r_x_read_addr
 logic [R_X_COL_ADDR_WIDTH-1:0] r_x_write_addr [R_X_ROWS-1:0]; // 0..511+2 (10 bit)
 logic r_x_write_enable [R_X_ROWS-1:0];
 logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
-logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr [R_X_ROWS-1:0]; // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
+// Registered inside module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
+logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr [R_X_ROWS-1:0];
 // RAM output
 logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 words (3 x 8)
 pixelram pixel_ram 
@@ -137,7 +138,7 @@ always_ff @ (posedge clk) begin
 				// Shift the mapping, upward (idx[0]->idx[2])
 				r_x_row_logical_to_physical_index <= {r_x_row_logical_to_physical_index[0], r_x_row_logical_to_physical_index[R_X_ROWS-1:1]};
 
-				// Reset r_x_col_idx_ipipelined if necessary, continuing at idx 1.
+				// Reset r_x_col_idx if necessary, continuing at idx 1.
 				// Skipping idx 0 because we are at idx 0 currently
 				r_x_col_idx <= 1;
 
@@ -152,7 +153,7 @@ always_ff @ (posedge clk) begin
 				r_x_write_data[r_x_row_logical_to_physical_index[R_X_ROWS-1]] <= i_x;
 				r_x_write_enable[r_x_row_logical_to_physical_index[R_X_ROWS-1]] <= 1;
 
-				// Increment r_x_col_idx_ipipelined
+				// Increment r_x_col_idx
 				r_x_col_idx <= r_x_col_idx + 1;
 			end
 		end
@@ -209,8 +210,8 @@ logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0]
 // EGRESS: Stage -1
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 always_comb begin
-	if (r_x_col_idx_ipipelined >= FILTER_SIZE) begin
-		adjusted_r_x_col_idx = r_x_col_idx_ipipelined;
+	if (r_x_col_idx >= FILTER_SIZE) begin
+		adjusted_r_x_col_idx = r_x_col_idx;
 	end else begin
 		adjusted_r_x_col_idx = FILTER_SIZE;
 	end
@@ -301,7 +302,7 @@ always_ff @ (posedge clk) begin
 		r_x_col_idx_prev <= 0;
 	end else if(enable) begin
 		r_x_col_idx_prev <= r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1];
-		// By the time r_x_col_idx_ipipelined is 3, pixel at idx 2 is already written with i_x
+		// By the time r_x_col_idx is 3, pixel at idx 2 is already written with i_x
 		if(r_x_col_idx_prev != r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] &&
 			r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] >= FILTER_SIZE &&
 			r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-1] == R_X_ROWS - 1) begin
@@ -370,11 +371,11 @@ module pixelram #
 	input clk,
 	input reset,
 	input enable,
-	// RAM input, unregistered
+	// RAM input, unregistered inside the module except for i_read_addr
 	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr [R_X_ROWS-1:0],
 	input i_write_enable [R_X_ROWS-1:0],
 	input unsigned [PIXEL_DATAW-1:0] i_write_data [R_X_ROWS-1:0],
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr [R_X_ROWS-1:0], // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr [R_X_ROWS-1:0], // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 	// RAM output
 	output unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 words (3 x 8)
 );
@@ -416,26 +417,81 @@ module pixelrowram #
 	input clk,
 	input reset,
 	input enable,
-	// RAM input, unregistered
+	// RAM input, unregistered inside the module except for i_read_addr
 	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr,
 	input i_write_enable,
 	input unsigned [PIXEL_DATAW-1:0] i_write_data,
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 	// RAM output
 	output logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data // registered, 3 words (3 x 8)
 );
+	localparam NUM_R_X_ROW = FILTER_SIZE;
+	
 	// Wrap as RAM
 	// 0: [] [] [] [] [] [] [] []                         512 + 2
-	logic unsigned [R_X_COL_WIDTH-1:0] [PIXEL_DATAW-1:0] r_x_row; // 2D array of registers for input pixels, row major
+	genvar gen_i;
+	generate
+		for (gen_i=0; gen_i<NUM_R_X_ROW; gen_i=gen_i+1) begin: pixel_ram_row_shard
+			parameter bit [R_X_COL_ADDR_WIDTH-1:0] gen_i_trunc = gen_i;
+			pixelrowramshard pixel_row_ram_shard
+			(
+				.clk(clk),
+				.reset(reset),
+				.enable(enable),
+				// RAM input, unregistered
+				.i_write_addr(i_write_addr),
+				.i_write_enable(i_write_enable),
+				.i_write_data(i_write_data),
+				.i_read_addr(i_read_addr+gen_i_trunc), // read 1 word
+				// RAM output
+				.o_read_data(o_read_data[gen_i_trunc]) // registered, 1 word
+			);
+		end
+	endgenerate
+endmodule
+
+/*******************************************************************************************/
+
+module pixelrowramshard #
+(
+	parameter PIXEL_DATAW = 8,
+	parameter IMAGE_WIDTH = 512,
+	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
+	parameter R_X_COL_ADDR_WIDTH = 10
+)
+(
+	input clk,
+	input reset,
+	input enable,
+	// RAM input, unregistered inside the module except for i_read_addr
+	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr,
+	input i_write_enable,
+	input unsigned [PIXEL_DATAW-1:0] i_write_data,
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 1 word
+	// RAM output
+	output logic unsigned [PIXEL_DATAW-1:0] o_read_data // registered, 1 word
+);
+	// Wrap as RAM
+	// 0: [] [] [] [] [] [] [] []                         512 + 2
+	logic unsigned [PIXEL_DATAW-1:0] r_x_row_shard [R_X_COL_WIDTH-1:0]; // 2D array of registers for input pixels, row major
+	logic [R_X_COL_ADDR_WIDTH-1:0] i_read_addr_reg;
+
+	integer i;
+	initial begin
+		for (i=0; i<R_X_COL_WIDTH; i=i+1) begin
+			r_x_row_shard[i] = 0;
+		end
+	end
 
 	always_ff @ (posedge clk) begin
 		if(reset) begin
-			r_x_row <= 0;
 			o_read_data <= 0;
+			i_read_addr_reg <= 0;
 		end else if(enable) begin
-			o_read_data <= {r_x_row[i_read_addr + 2], r_x_row[i_read_addr + 1], r_x_row[i_read_addr + 0]};
+			i_read_addr_reg <= i_read_addr;
+			o_read_data <= r_x_row_shard[i_read_addr_reg];
 			if(i_write_enable) begin
-				r_x_row[i_write_addr] <= i_write_data;
+				r_x_row_shard[i_write_addr] <= i_write_data;
 			end
 		end
 	end
