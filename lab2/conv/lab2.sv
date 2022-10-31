@@ -62,35 +62,32 @@ assign enable = i_ready;
 
 // Logics for buffer of x
 localparam IMAGE_WIDTH = 512;
-localparam R_X_ROWS = 3; // Always store 3 rows of i_x
+localparam R_X_ROWS = FILTER_SIZE; // Always store 3 rows of i_x
 localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
 
 
-// Wrap as RAM
-// 0: [] [] [] [] [] [] [] []                         512 + 2
-// 1: [] [] [] [] [] [] [] []                         512 + 2
-// 2: [] [] [] [] [] [] [] []                         512 + 2
-logic unsigned [R_X_COL_WIDTH-1:0] [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0]; // 2D array of registers for input pixels, row major
-// RAM input, unregistered
+// Pixel RAM
+// RAM input, need to be registered
 logic [10:0] r_x_write_addr [R_X_ROWS-1:0];
 logic r_x_write_enable [R_X_ROWS-1:0];
 logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
 logic [10:0] r_x_read_addr [R_X_ROWS-1:0]; // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 // RAM output
-logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // registered, 3 words (3 x 8)
-always_ff @ (posedge clk) begin
-	for(row = 0; row < R_X_ROWS; row = row + 1) begin
-		if(reset) begin
-			r_x[row] <= 0;
-			r_x_read_data[row] <= 0;
-		end else if(enable) begin
-			r_x_read_data[row] <= {r_x[row][r_x_read_addr[row] + 2], r_x[row][r_x_read_addr[row] + 1], r_x[row][r_x_read_addr[row] + 0]};
-			if(r_x_write_enable[row]) begin
-				r_x[row][r_x_write_addr[row]] <= r_x_write_data[row];
-			end
-		end
-	end
-end
+logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 words (3 x 8)
+pixelram pixel_ram 
+(
+	.clk(clk),
+	.reset(reset),
+	.enable(enable),
+	// RAM input, unregistered inside module
+	.i_write_addr(r_x_write_addr),
+	.i_write_enable(r_x_write_enable),
+	.i_write_data(r_x_write_data),
+	.i_read_addr(r_x_read_addr), // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	// RAM output
+	.o_read_data(r_x_read_data) // registered inside module, 3 words (3 x 8)
+);
+
 
 // Registers
 // 0: [] [] [] [] [] [] [] []                         512 + 2
@@ -354,4 +351,49 @@ module add16p16 (
 
 assign o_res = i_a + i_b;
 
+endmodule
+
+
+/*******************************************************************************************/
+
+module pixelram #
+(
+	parameter FILTER_SIZE = 3,
+	parameter PIXEL_DATAW = 8,
+	parameter IMAGE_WIDTH = 512,
+	parameter R_X_ROWS = FILTER_SIZE,
+	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2
+)
+(
+	input clk,
+	input reset,
+	input enable,
+	// RAM input, unregistered
+	input [10:0] i_write_addr [R_X_ROWS-1:0],
+	input i_write_enable [R_X_ROWS-1:0],
+	input unsigned [PIXEL_DATAW-1:0] i_write_data [R_X_ROWS-1:0],
+	input [10:0] i_read_addr [R_X_ROWS-1:0], // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	// RAM output
+	output logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 words (3 x 8)
+);
+	// Wrap as RAM
+	// 0: [] [] [] [] [] [] [] []                         512 + 2
+	// 1: [] [] [] [] [] [] [] []                         512 + 2
+	// 2: [] [] [] [] [] [] [] []                         512 + 2
+	logic unsigned [R_X_COL_WIDTH-1:0] [PIXEL_DATAW-1:0] r_x [R_X_ROWS-1:0]; // 2D array of registers for input pixels, row major
+
+	integer row;
+	always_ff @ (posedge clk) begin
+		for(row = 0; row < R_X_ROWS; row = row + 1) begin
+			if(reset) begin
+				r_x[row] <= 0;
+				o_read_data[row] <= 0;
+			end else if(enable) begin
+				o_read_data[row] <= {r_x[row][i_read_addr[row] + 2], r_x[row][i_read_addr[row] + 1], r_x[row][i_read_addr[row] + 0]};
+				if(i_write_enable[row]) begin
+					r_x[row][i_write_addr[row]] <= i_write_data[row];
+				end
+			end
+		end
+	end
 endmodule
