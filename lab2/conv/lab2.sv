@@ -64,14 +64,15 @@ assign enable = i_ready;
 localparam IMAGE_WIDTH = 512;
 localparam R_X_ROWS = FILTER_SIZE; // Always store 3 rows of i_x
 localparam R_X_COL_WIDTH = IMAGE_WIDTH + 2;
+localparam R_X_COL_ADDR_WIDTH = 10;
 
 
 // Pixel RAM
 // RAM input, need to be registered
-logic [10:0] r_x_write_addr [R_X_ROWS-1:0];
+logic [R_X_COL_ADDR_WIDTH-1:0] r_x_write_addr [R_X_ROWS-1:0]; // 0..511+2 (10 bit)
 logic r_x_write_enable [R_X_ROWS-1:0];
 logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
-logic [10:0] r_x_read_addr [R_X_ROWS-1:0]; // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr [R_X_ROWS-1:0]; // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
 // RAM output
 logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 words (3 x 8)
 pixelram pixel_ram 
@@ -94,7 +95,7 @@ pixelram pixel_ram
 // 1: [] [] [] [] [] [] [] []                         512 + 2
 // 2: [] [] [] [] [] [] [] []                         512 + 2
 logic unsigned [1:0] r_x_row_logical_idx; // Count from 0 to R_X_ROWS - 1 (incl), logical order, not necessarily physical
-logic unsigned [9:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 // Count from 0 to R_X_ROWS - 1 (incl), physical order
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index;
 
@@ -160,7 +161,7 @@ end
 
 // Pipeline registers for ingress
 logic unsigned [1:0] r_x_row_logical_idx_ipipelined;
-logic unsigned [9:0] r_x_col_idx_ipipelined;
+logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_ipipelined;
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_ipipelined;
 // INGRESS: Stage 0, to match registered RAM write
 always_ff @ (posedge clk) begin
@@ -181,7 +182,7 @@ end
 
 // Pipeline registers for egress
 localparam NUM_EGRESS_STAGE = 1;
-logic unsigned [NUM_EGRESS_STAGE-1:0] [9:0] r_x_col_idx_epipelined;
+logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined;
 always_ff @ (posedge clk) begin
@@ -206,7 +207,7 @@ logic r_y_valid;
 // Multiplication
 logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0];
 // EGRESS: Stage -1
-logic unsigned [9:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
+logic unsigned [R_X_COL_ADDR_WIDTH-1:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 always_comb begin
 	if (r_x_col_idx_ipipelined >= FILTER_SIZE) begin
 		adjusted_r_x_col_idx = r_x_col_idx_ipipelined;
@@ -292,7 +293,7 @@ end
 
 // Output interface logics
 // EGRESS: Stage 0
-logic unsigned [9:0] r_x_col_idx_prev;
+logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
@@ -362,17 +363,18 @@ module pixelram #
 	parameter PIXEL_DATAW = 8,
 	parameter IMAGE_WIDTH = 512,
 	parameter R_X_ROWS = FILTER_SIZE,
-	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2
+	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
+	parameter R_X_COL_ADDR_WIDTH = 10
 )
 (
 	input clk,
 	input reset,
 	input enable,
 	// RAM input, unregistered
-	input [10:0] i_write_addr [R_X_ROWS-1:0],
+	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr [R_X_ROWS-1:0],
 	input i_write_enable [R_X_ROWS-1:0],
 	input unsigned [PIXEL_DATAW-1:0] i_write_data [R_X_ROWS-1:0],
-	input [10:0] i_read_addr [R_X_ROWS-1:0], // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr [R_X_ROWS-1:0], // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 	// RAM output
 	output unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 words (3 x 8)
 );
@@ -407,17 +409,18 @@ module pixelrowram #
 	parameter FILTER_SIZE = 3,
 	parameter PIXEL_DATAW = 8,
 	parameter IMAGE_WIDTH = 512,
-	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2
+	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
+	parameter R_X_COL_ADDR_WIDTH = 10
 )
 (
 	input clk,
 	input reset,
 	input enable,
 	// RAM input, unregistered
-	input [10:0] i_write_addr,
+	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr,
 	input i_write_enable,
 	input unsigned [PIXEL_DATAW-1:0] i_write_data,
-	input [10:0] i_read_addr, // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
 	// RAM output
 	output logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data // registered, 3 words (3 x 8)
 );
