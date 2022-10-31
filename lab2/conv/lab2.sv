@@ -220,7 +220,7 @@ logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
 mult8x8p8x8 m01 (
 	.clk(clk),
 	.enable(enable),
-	.i_filtera(r_f[0][2]),
+	.i_filtera(r_f[0][0]),
 	.i_pixela(r_mult_i_pixel_reg[0][0]),
 	.i_filterb(r_f[0][1]),
 	.i_pixelb(r_mult_i_pixel_reg[0][1]),
@@ -229,9 +229,9 @@ mult8x8p8x8 m01 (
 mult8x8p8x8 m23 (
 	.clk(clk),
 	.enable(enable),
-	.i_filtera(r_f[0][0]),
+	.i_filtera(r_f[0][2]),
 	.i_pixela(r_mult_i_pixel_reg[0][2]),
-	.i_filterb(r_f[1][2]),
+	.i_filterb(r_f[1][0]),
 	.i_pixelb(r_mult_i_pixel_reg[1][0]),
 	.o_res(sums_stage_0[1])
 );
@@ -240,14 +240,14 @@ mult8x8p8x8 m45 (
 	.enable(enable),
 	.i_filtera(r_f[1][1]),
 	.i_pixela(r_mult_i_pixel_reg[1][1]),
-	.i_filterb(r_f[1][0]),
+	.i_filterb(r_f[1][2]),
 	.i_pixelb(r_mult_i_pixel_reg[1][2]),
 	.o_res(sums_stage_0[2])
 );
 mult8x8p8x8 m67 (
 	.clk(clk),
 	.enable(enable),
-	.i_filtera(r_f[2][2]),
+	.i_filtera(r_f[2][0]),
 	.i_pixela(r_mult_i_pixel_reg[2][0]),
 	.i_filterb(r_f[2][1]),
 	.i_pixelb(r_mult_i_pixel_reg[2][1]),
@@ -256,7 +256,7 @@ mult8x8p8x8 m67 (
 mult8x8 m8 (
 	.clk(clk),
 	.enable(enable),
-	.i_filter(r_f[2][0]),
+	.i_filter(r_f[2][2]),
 	.i_pixel(r_mult_i_pixel_reg[2][2]),
 	.o_res(sums_stage_0[4])
 );
