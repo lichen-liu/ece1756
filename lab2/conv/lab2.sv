@@ -166,11 +166,7 @@ logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_ipipelined;
 logic unsigned [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_ipipelined;
 // INGRESS: Stage 0, to match registered RAM write
 always_ff @ (posedge clk) begin
-	if(reset) begin
-		r_x_row_logical_idx_ipipelined <= 0;
-		r_x_col_idx_ipipelined <= 0;
-		r_x_row_logical_to_physical_index_ipipelined <= 0;
-	end else if (enable) begin
+	if (enable) begin
 		r_x_row_logical_idx_ipipelined <= r_x_row_logical_idx;
 		r_x_col_idx_ipipelined <= r_x_col_idx;
 		r_x_row_logical_to_physical_index_ipipelined <= r_x_row_logical_to_physical_index;
@@ -182,16 +178,12 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 3;
+localparam NUM_EGRESS_STAGE = 7;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
 always_ff @ (posedge clk) begin
-	if(reset) begin
-		r_x_col_idx_epipelined <= 0;
-		r_x_row_logical_idx_epipelined <= 0;
-		r_x_row_logical_to_physical_index_epipelined <= 0;
-	end else if(enable) begin
+	if(enable) begin
 		r_x_col_idx_epipelined <= {r_x_col_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_col_idx_ipipelined};
 		r_x_row_logical_idx_epipelined <= {r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_row_logical_idx_ipipelined};
 		r_x_row_logical_to_physical_index_epipelined <= r_x_row_logical_to_physical_index_ipipelined;
@@ -199,97 +191,99 @@ always_ff @ (posedge clk) begin
 end
 
 // Logics for convolution core
-// Registers
-logic unsigned [PIXEL_DATAW-1:0] r_y;
-logic r_y_valid;
-
 // Computation
 
-// Multiplication
-logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0];
 // EGRESS: Stage -1
-logic unsigned [R_X_COL_ADDR_WIDTH-1:0] adjusted_r_x_col_idx; // Count from 0 to R_X_COL_WIDTH (incl)
 always_comb begin
-	if (r_x_col_idx >= FILTER_SIZE) begin
-		adjusted_r_x_col_idx = r_x_col_idx;
+	if (r_x_col_idx > FILTER_SIZE-1) begin
+		r_x_read_addr = r_x_col_idx - FILTER_SIZE;
 	end else begin
-		adjusted_r_x_col_idx = FILTER_SIZE;
+		r_x_read_addr = 0;
 	end
 end
 
-always_comb begin
-	r_x_read_addr = adjusted_r_x_col_idx - FILTER_SIZE;
-end
-// EGRESS: Stage 0
+// EGRESS: Stage 0, 1
+logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel [R_X_ROWS-1:0];
+logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_mult_i_pixel_reg [R_X_ROWS-1:0];
 always_ff @ (posedge clk) begin
 	for(row=0; row<R_X_ROWS; row=row+1) begin
-		if(reset) begin
-			r_mult_i_pixel[row] <= 0;
-		end else if(enable) begin
+		if(enable) begin
 			r_mult_i_pixel[row] <= r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]];
+			r_mult_i_pixel_reg[row] <= r_mult_i_pixel[row];
 		end
 	end
 end
 
-logic signed [2*PIXEL_DATAW-1:0] products [FILTER_SIZE*FILTER_SIZE-1:0];
-genvar gen_i, gen_j;
-generate
-	for(gen_i = 0; gen_i < R_X_ROWS; gen_i = gen_i + 1) begin: mult_row
-		for(gen_j = 0; gen_j < FILTER_SIZE; gen_j = gen_j + 1) begin: mult_col
-			mult8x8 m (
-				.i_filter(r_f[gen_i][FILTER_SIZE - (gen_j+1)]),
-				.i_pixel(r_mult_i_pixel[gen_i][gen_j]),
-				.o_res(products[gen_i * FILTER_SIZE + gen_j])
-			);
-		end
-	end
-endgenerate
-
-// Reduction tree
+// Multiplication
+// EGRESS: Stage 2, 3
 logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
-add16p16 a01(
-	.i_a(products[0]),
-	.i_b(products[1]),
+mult8x8p8x8 m01 (
+	.clk(clk),
+	.enable(enable),
+	.i_filtera(r_f[0][2]),
+	.i_pixela(r_mult_i_pixel_reg[0][0]),
+	.i_filterb(r_f[0][1]),
+	.i_pixelb(r_mult_i_pixel_reg[0][1]),
 	.o_res(sums_stage_0[0])
 );
-add16p16 a23(
-	.i_a(products[2]),
-	.i_b(products[3]),
+mult8x8p8x8 m23 (
+	.clk(clk),
+	.enable(enable),
+	.i_filtera(r_f[0][0]),
+	.i_pixela(r_mult_i_pixel_reg[0][2]),
+	.i_filterb(r_f[1][2]),
+	.i_pixelb(r_mult_i_pixel_reg[1][0]),
 	.o_res(sums_stage_0[1])
 );
-add16p16 a45(
-	.i_a(products[4]),
-	.i_b(products[5]),
+mult8x8p8x8 m45 (
+	.clk(clk),
+	.enable(enable),
+	.i_filtera(r_f[1][1]),
+	.i_pixela(r_mult_i_pixel_reg[1][1]),
+	.i_filterb(r_f[1][0]),
+	.i_pixelb(r_mult_i_pixel_reg[1][2]),
 	.o_res(sums_stage_0[2])
 );
-add16p16 a67(
-	.i_a(products[6]),
-	.i_b(products[7]),
+mult8x8p8x8 m67 (
+	.clk(clk),
+	.enable(enable),
+	.i_filtera(r_f[2][2]),
+	.i_pixela(r_mult_i_pixel_reg[2][0]),
+	.i_filterb(r_f[2][1]),
+	.i_pixelb(r_mult_i_pixel_reg[2][1]),
 	.o_res(sums_stage_0[3])
 );
-assign sums_stage_0[4] = products[8];
-// EGRESS: Stage 1
+mult8x8 m8 (
+	.clk(clk),
+	.enable(enable),
+	.i_filter(r_f[2][0]),
+	.i_pixel(r_mult_i_pixel_reg[2][2]),
+	.o_res(sums_stage_0[4])
+);
+
+// Reduction tree
+// EGRESS: Stage 4, 5
 logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
+logic signed [4:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
 always_ff @ (posedge clk) begin
-	if(reset) begin
-		sums_stage_0_reg <= 0;
-	end else if(enable) begin
+	if(enable) begin
 		sums_stage_0_reg <= sums_stage_0;
+		sums_stage_0_reg_reg <= sums_stage_0_reg;
 	end
 end
 
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_1 [2:0];
 add16p16 a0123(
-	.i_a(sums_stage_0_reg[0]),
-	.i_b(sums_stage_0_reg[1]),
+	.i_a(sums_stage_0_reg_reg[0]),
+	.i_b(sums_stage_0_reg_reg[1]),
 	.o_res(sums_stage_1[0])
 );
 add16p16 a4567(
-	.i_a(sums_stage_0_reg[2]),
-	.i_b(sums_stage_0_reg[3]),
+	.i_a(sums_stage_0_reg_reg[2]),
+	.i_b(sums_stage_0_reg_reg[3]),
 	.o_res(sums_stage_1[1])
 );
-assign sums_stage_1[2] = sums_stage_0_reg[4];
+assign sums_stage_1[2] = sums_stage_0_reg_reg[4];
 
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_2 [1:0];
 add16p16 a01234567(
@@ -306,7 +300,6 @@ add16p16 a012345678(
 	.o_res(sums_stage_3)
 );
 
-
 logic unsigned [PIXEL_DATAW-1:0] y;
 always_comb begin
 	if(sums_stage_3>255) begin
@@ -319,7 +312,9 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 2
+// EGRESS: Stage 6
+logic unsigned [PIXEL_DATAW-1:0] r_y;
+logic r_y_valid;
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
 always_ff @ (posedge clk) begin
 	if(reset) begin
@@ -354,9 +349,11 @@ endmodule
 
 // Multiplier module for 8x8 multiplications
 module mult8x8 (
+	input clk,
+	input enable,
 	input signed [7:0] i_filter,
 	input unsigned [7:0] i_pixel,
-	output signed [15:0] o_res
+	output logic signed [15:0] o_res
 );
 
 // Signed x unsigned gets unsigned, which is not what we intend.
@@ -364,7 +361,45 @@ module mult8x8 (
 logic signed [8:0] i_pixel_signed;
 assign i_pixel_signed = {1'b0, i_pixel};
 
-assign o_res = i_filter * i_pixel_signed;
+logic signed [8:0] i_pixel_signed_reg;
+always_ff @ (posedge clk) begin
+	if(enable) begin
+		i_pixel_signed_reg <= i_pixel_signed;
+		o_res <= i_filter * i_pixel_signed_reg;
+	end
+end
+
+endmodule
+
+/*******************************************************************************************/
+
+// Multiplier module for 8x8 multiplications + 8x8 multiplications
+module mult8x8p8x8 (
+	input clk,
+	input enable,
+	input signed [7:0] i_filtera,
+	input unsigned [7:0] i_pixela,
+	input signed [7:0] i_filterb,
+	input unsigned [7:0] i_pixelb,
+	output logic signed [15:0] o_res
+);
+
+// Signed x unsigned gets unsigned, which is not what we intend.
+// So convert unsigned to signed by treating unsigned number as positive (by adding a 0 to msb)
+logic signed [8:0] i_pixela_signed;
+assign i_pixela_signed = {1'b0, i_pixela};
+logic signed [8:0] i_pixelb_signed;
+assign i_pixelb_signed = {1'b0, i_pixelb};
+
+logic signed [8:0] i_pixela_signed_reg;
+logic signed [8:0] i_pixelb_signed_reg;
+always_ff @ (posedge clk) begin
+	if(enable) begin
+		i_pixela_signed_reg <= i_pixela_signed;
+		i_pixelb_signed_reg <= i_pixelb_signed;
+		o_res <= i_filtera * i_pixela_signed_reg + i_filterb * i_pixelb_signed_reg;
+	end
+end
 
 endmodule
 
