@@ -182,18 +182,18 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 1;
+localparam NUM_EGRESS_STAGE = 2;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
-logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined;
+logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_x_col_idx_epipelined <= 0;
 		r_x_row_logical_idx_epipelined <= 0;
 		r_x_row_logical_to_physical_index_epipelined <= 0;
 	end else if(enable) begin
-		r_x_col_idx_epipelined <= /*{r_x_col_idx_epipelined[NUM_EGRESS_STAGE-2:0],*/ r_x_col_idx_ipipelined;
-		r_x_row_logical_idx_epipelined <= /*{r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-2:0],*/ r_x_row_logical_idx_ipipelined;
+		r_x_col_idx_epipelined <= {r_x_col_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_col_idx_ipipelined};
+		r_x_row_logical_idx_epipelined <= {r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_row_logical_idx_ipipelined};
 		r_x_row_logical_to_physical_index_epipelined <= r_x_row_logical_to_physical_index_ipipelined;
 	end
 end
@@ -221,9 +221,17 @@ always_comb begin
 		r_x_read_addr[0] = adjusted_r_x_col_idx - FILTER_SIZE;
 		r_x_read_addr[1] = adjusted_r_x_col_idx - FILTER_SIZE;
 		r_x_read_addr[2] = adjusted_r_x_col_idx - FILTER_SIZE;
-		r_mult_i_pixel[0] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][0]];
-		r_mult_i_pixel[1] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][1]];
-		r_mult_i_pixel[2] = r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][2]];
+end
+
+// EGRESS: Stage 0
+always_ff @ (posedge clk) begin
+	for(row=0; row<R_X_ROWS; row=row+1) begin
+		if(reset) begin
+			r_mult_i_pixel[row] <= 0;
+		end else if(enable) begin
+			r_mult_i_pixel[row] <= r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]];
+		end
+	end
 end
 
 genvar gen_i, gen_j;
@@ -293,7 +301,7 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 0
+// EGRESS: Stage 1
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
 always_ff @ (posedge clk) begin
 	if(reset) begin
