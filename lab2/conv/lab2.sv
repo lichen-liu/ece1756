@@ -186,7 +186,7 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 9;
+localparam NUM_EGRESS_STAGE = 8;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
 logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
@@ -240,27 +240,27 @@ generate
 endgenerate
 
 // Reduction tree
-// EGRESS: Stage 5, 6
+// EGRESS: Stage 5
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
-logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
+// logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
 always_ff @ (posedge clk) begin
 	if(enable) begin
 		sums_stage_0_reg <= sums_stage_0;
-		sums_stage_0_reg_reg <= sums_stage_0_reg;
+		// sums_stage_0_reg_reg <= sums_stage_0_reg;
 	end
 end
 
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_1 [1:0];
 always_comb begin
-	sums_stage_1[0] = sums_stage_0_reg_reg[0] + sums_stage_0_reg_reg[1];
-	sums_stage_1[1] = sums_stage_0_reg_reg[2];
+	sums_stage_1[0] = sums_stage_0_reg[0] + sums_stage_0_reg[1];
+	sums_stage_1[1] = sums_stage_0_reg[2];
 end
 
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_2;
 always_comb begin
 	sums_stage_2 = sums_stage_1[0] + sums_stage_1[1];
 end
-// EGRESS: Stage 7
+// EGRESS: Stage 6
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_2_reg;
 always_ff @ (posedge clk) begin
 	if(enable)begin
@@ -280,7 +280,7 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 8
+// EGRESS: Stage 7
 logic unsigned [PIXEL_DATAW-1:0] r_y;
 logic r_y_valid;
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
@@ -491,26 +491,35 @@ module pixelrowramshard #
 );
 	// Wrap as RAM
 	// 0: [] [] [] [] [] [] [] []                         512 + 2
-	logic unsigned [PIXEL_DATAW-1:0] r_x_row_shard [R_X_COL_WIDTH-1:0]; // 2D array of registers for input pixels, row major
+	// 2D array of registers for input pixels, row major
+	// set_global_assignment -name ADD_PASS_THROUGH_LOGIC_TO_INFERRED_RAMS OFF
+	logic unsigned [PIXEL_DATAW-1:0] mem [R_X_COL_WIDTH-1:0];
+
 	logic [R_X_COL_ADDR_WIDTH-1:0] i_read_addr_reg;
 
 	integer i;
 	initial begin
 		for (i=0; i<R_X_COL_WIDTH; i=i+1) begin
-			r_x_row_shard[i] = 0;
+			mem[i] = 0;
+		end
+	end
+
+	always_ff @ (posedge clk) begin
+		if(reset) begin
+			i_read_addr_reg <= 0;
+		end else if(enable) begin
+			i_read_addr_reg <= i_read_addr;
 		end
 	end
 
 	always_ff @ (posedge clk) begin
 		if(reset) begin
 			o_read_data <= 0;
-			i_read_addr_reg <= 0;
 		end else if(enable) begin
-			i_read_addr_reg <= i_read_addr;
-			o_read_data <= r_x_row_shard[i_read_addr_reg];
 			if(i_write_enable) begin
-				r_x_row_shard[i_write_addr] <= i_write_data;
+				mem[i_write_addr] <= i_write_data;
 			end
+			o_read_data <= mem[i_read_addr_reg];
 		end
 	end
 endmodule
