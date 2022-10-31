@@ -242,11 +242,9 @@ endgenerate
 // Reduction tree
 // EGRESS: Stage 5
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
-// logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg_reg;
 always_ff @ (posedge clk) begin
 	if(enable) begin
 		sums_stage_0_reg <= sums_stage_0;
-		// sums_stage_0_reg_reg <= sums_stage_0_reg;
 	end
 end
 
