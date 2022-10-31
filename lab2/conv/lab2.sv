@@ -84,7 +84,7 @@ always_ff @ (posedge clk) begin
 			r_x[row] <= 0;
 			r_x_read_data[row] <= 0;
 		end else if(enable) begin
-			r_x_read_data[row] <= r_x[row][r_x_read_addr[row] +: FILTER_SIZE];
+			r_x_read_data[row] <= {r_x[row][r_x_read_addr[row] + 2], r_x[row][r_x_read_addr[row] + 1], r_x[row][r_x_read_addr[row] + 0]};
 			if(r_x_write_enable[row]) begin
 				r_x[row][r_x_write_addr[row]] <= r_x_write_data[row];
 			end
@@ -295,18 +295,22 @@ end
 
 // Output interface logics
 // EGRESS: Stage 0
+logic unsigned [9:0] r_x_col_idx_prev;
 always_ff @ (posedge clk) begin
 	if(reset) begin
 		r_y <= 0;
 		r_y_valid <= 0;
+		r_x_col_idx_prev <= 0;
 	end else if(enable) begin
+		r_x_col_idx_prev <= r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1];
 		// By the time r_x_col_idx_ipipelined is 3, pixel at idx 2 is already written with i_x
-		if(r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] >= FILTER_SIZE &&
+		if(r_x_col_idx_prev != r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] &&
+			r_x_col_idx_epipelined[NUM_EGRESS_STAGE-1] >= FILTER_SIZE &&
 			r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-1] == R_X_ROWS - 1) begin
 			r_y <= y;
 			r_y_valid <= 1;
 		end else begin
-			r_y <= y;
+			r_y <= 0;
 			r_y_valid <= 0;
 		end
 	end
