@@ -9,7 +9,7 @@ localparam TIMESTEP = CLK_PERIOD/10;		// Time step of one tenth of a clock perio
 localparam FILTER_SIZE = 3;					// Convolution filter size (3x3)
 localparam PADDING_SIZE = FILTER_SIZE/2;	// Image padding size 
 // You have to set the project directory for the testbench to operate correctly
-localparam PROJECT_DIR = "/path/to/quartus/project/root/directory";
+localparam PROJECT_DIR = "/nfs/ug/homes-5/l/liuli15/ece1756/lab2/conv";
 
 // Declare signals for the DUT interface
 logic clk;
@@ -37,75 +37,75 @@ initial sharpen_filter = {8'd0, -8'd1, 8'd0, -8'd1, 8'd5, -8'd1, 8'd0, -8'd1, 8'
 
 // Test 1: Delta Dot (3 x 512) & Identity filter
 // This test uses a 3 x 512 black image with one white pixel in the middle
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/01_delta_point.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/01_delta_point_identity_golden.pgm"};
-//initial i_f = identity_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/01_delta_point.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/01_delta_point_identity_golden.pgm"};
+// initial i_f = identity_filter;
 
 // Test 2: Delta Line (3 x 512) & Identity filter
 // This test uses a 3 x 512 black image with a white vertical line of pixels in the middle
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/02_delta_line.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/02_delta_line_identity_golden.pgm"};
-//initial i_f = identity_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/02_delta_line.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/02_delta_line_identity_golden.pgm"};
+// initial i_f = identity_filter;
 
 // Test 3a: Step (3 x 512) & Identity filter
 // This test uses a 3 x 512 half black and half white image
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/03_step.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/03_step_identity_golden.pgm"};
-//initial i_f = identity_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/03_step.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/03_step_identity_golden.pgm"};
+// initial i_f = identity_filter;
 
 // Test 3b: Step (3 x 512) & Edge filter
 // This test uses a 3 x 512 half black and half white image
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/03_step.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/03_step_edge_golden.pgm"};
-//initial i_f = edge_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/03_step.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/03_step_edge_golden.pgm"};
+// initial i_f = edge_filter;
 
 // Test 4a: Pixel Checker Board (3 x 512) & Identity filter
 // This test uses a 3 x 512 image with alternating black and white pixels in a checker board pattern
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/04_pixelchecker.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/04_pixelchecker_identity_golden.pgm"};
-//initial i_f = identity_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/04_pixelchecker.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/04_pixelchecker_identity_golden.pgm"};
+// initial i_f = identity_filter;
 
 // Test 4b: Pixel Checker Board (3 x 512) & Edge filter
 // This test uses a 3 x 512 image with alternating black and white pixels in a checker board pattern
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/04_pixelchecker.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/04_pixelchecker_edge_golden.pgm"};
-//initial i_f = edge_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/04_pixelchecker.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/04_pixelchecker_edge_golden.pgm"};
+// initial i_f = edge_filter;
 
 // Test 5a: Checker Board (50 x 512) & Identity filter
 // This test uses a 50 x 512 image of a coarse checker board pattern
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/05_checker.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/05_checker_identity_golden.pgm"};
-//initial i_f = identity_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/05_checker.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/05_checker_identity_golden.pgm"};
+// initial i_f = identity_filter;
 
 // Test 5b: Checker Board (50 x 512) & Edge filter
 // This test uses a 50 x 512 image of a coarse checker board pattern
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/05_checker.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/05_checker_edge_golden.pgm"};
-//initial i_f = edge_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/05_checker.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/05_checker_edge_golden.pgm"};
+// initial i_f = edge_filter;
 
 // Test 6a: Small Hinton (50 x 512) & Edge filter
 // This test uses a 50 x 512 snippet of the Geoffrey Hinton's image
-localparam TEST_IMAGE = {PROJECT_DIR, "/tests/06_hinton_small.pgm"};
-localparam GOLDEN_RES = {PROJECT_DIR, "/tests/06_hinton_small_edge_golden.pgm"};
-initial i_f = edge_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/06_hinton_small.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/06_hinton_small_edge_golden.pgm"};
+// initial i_f = edge_filter;
 
 // Test 6b: Small Hinton (50 x 512) & Sharpen filter
 // This test uses a 50 x 512 snippet of the Geoffrey Hinton's image
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/06_hinton_small.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/06_hinton_small_sharpen_golden.pgm"};
-//initial i_f = sharpen_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/06_hinton_small.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/06_hinton_small_sharpen_golden.pgm"};
+// initial i_f = sharpen_filter;
 
 // Test 7a: Hinton (512 x 512) & Edge filter
 // This test uses a full 512 x 512 image of Geoffrey Hinton
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_edge_golden.pgm"};
-//initial i_f = edge_filter;
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_edge_golden.pgm"};
+// initial i_f = edge_filter;
 
 // Test 7b: Hinton (512 x 512) & Sharpen filter
 // This test uses a full 512 x 512 image of Geoffrey Hinton
-//localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
-//localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_sharpen_golden.pgm"};
-//initial i_f = sharpen_filter; 
+localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
+localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_sharpen_golden.pgm"};
+initial i_f = sharpen_filter; 
 
 
 // Generate a 50MHz clock
