@@ -97,15 +97,15 @@ initial sharpen_filter = {8'd0, -8'd1, 8'd0, -8'd1, 8'd5, -8'd1, 8'd0, -8'd1, 8'
 
 // Test 7a: Hinton (512 x 512) & Edge filter
 // This test uses a full 512 x 512 image of Geoffrey Hinton
-// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
-// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_edge_golden.pgm"};
-// initial i_f = edge_filter;
+localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
+localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_edge_golden.pgm"};
+initial i_f = edge_filter;
 
 // Test 7b: Hinton (512 x 512) & Sharpen filter
 // This test uses a full 512 x 512 image of Geoffrey Hinton
-localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
-localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_sharpen_golden.pgm"};
-initial i_f = sharpen_filter; 
+// localparam TEST_IMAGE = {PROJECT_DIR, "/tests/07_hinton.pgm"};
+// localparam GOLDEN_RES = {PROJECT_DIR, "/tests/07_hinton_sharpen_golden.pgm"};
+// initial i_f = sharpen_filter; 
 
 
 // Generate a 50MHz clock

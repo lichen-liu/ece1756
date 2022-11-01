@@ -7,3 +7,6 @@
 **/*.qws
 **/*.qar
 **/*.wlf
+
+lab2/cpu_gpu/out_cpu
+lab2/cpu_gpu/out_gpu
