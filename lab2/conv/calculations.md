@@ -19,7 +19,7 @@ M20K: 0.45mW
 Combinational cell: 0.20mW
 Register cell: 0.79mW
 // Toggle Rate: 8.518 millions of transitions / sec
-(0.08mW + 0.45mW + 0.20mW + 0.79mW + 2.82mW) / 50MHz * 549.45 MHz = 47.69mW
+(0.08mW + 0.45mW + 0.20mW + 0.79mW + 2.82mW) / 50MHz * 549.45 MHz = 47.69mW = 0.048W
 
 Throughput of one module (GOPS)
 #OP = 512 * 512 * (9 + 8) = 4456448
@@ -37,4 +37,4 @@ IO: 0.19mW
 (0.08mW + 0.45mW + 0.20mW + 0.79mW) / 50MHz * 549.45 MHz * 506 +
 2.82mW / 50MHz * 549.45 MHz +
 1704.56mW + 0.19mW
-10.188W
+=10.188W
