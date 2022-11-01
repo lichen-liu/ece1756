@@ -185,15 +185,15 @@ end
 // **********************
 
 // Pipeline registers for egress
-localparam NUM_EGRESS_STAGE = 8;
+localparam NUM_EGRESS_STAGE = 9;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_epipelined;
 logic unsigned [NUM_EGRESS_STAGE-1:0] [1:0] r_x_row_logical_idx_epipelined;
-logic unsigned [0:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
+logic unsigned [1:0] [R_X_ROWS-1:0][1:0] r_x_row_logical_to_physical_index_epipelined; // Not needed for full pipeline stage
 always_ff @ (posedge clk) begin
 	if(enable) begin
 		r_x_col_idx_epipelined <= {r_x_col_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_col_idx_ipipelined};
 		r_x_row_logical_idx_epipelined <= {r_x_row_logical_idx_epipelined[NUM_EGRESS_STAGE-2:0], r_x_row_logical_idx_ipipelined};
-		r_x_row_logical_to_physical_index_epipelined <= r_x_row_logical_to_physical_index_ipipelined;
+		r_x_row_logical_to_physical_index_epipelined <= {r_x_row_logical_to_physical_index_epipelined[0:0], r_x_row_logical_to_physical_index_ipipelined};
 	end
 end
 
@@ -205,20 +205,22 @@ always_comb begin
 	r_x_read_addr = r_x_col_idx_read_addr_adjusted;
 end
 
-// EGRESS: Stage 0
+// EGRESS: Stage 0, 1
 // Signed x unsigned gets unsigned, which is not what we intend.
 // So convert unsigned to signed by treating unsigned number as positive (by adding a 0 to msb)
 logic signed [FILTER_SIZE-1:0] [PIXEL_DATAW:0] r_mult_i_pixel [R_X_ROWS-1:0];
+logic [PIXEL_DATAW:0] r_x_read_data_reg [R_X_ROWS-1:0];
 always_ff @ (posedge clk) begin
 	if(enable) begin
 		for(row=0; row<R_X_ROWS; row=row+1) begin
-			r_mult_i_pixel[row] <= {{1'b0, r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]]}, r_mult_i_pixel[row][FILTER_SIZE-1:1]};
+			r_x_read_data_reg[row] <= r_x_read_data[row];
+			r_mult_i_pixel[row] <= {{1'b0, r_x_read_data_reg[r_x_row_logical_to_physical_index_epipelined[1][row]]}, r_mult_i_pixel[row][FILTER_SIZE-1:1]};
 		end
 	end
 end
 
 // Multiplication
-// EGRESS: Stage 1, 2, 3, 4
+// EGRESS: Stage 2, 3, 4, 5
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0;
 genvar gen_row;
 generate
@@ -237,7 +239,7 @@ generate
 endgenerate
 
 // Reduction tree
-// EGRESS: Stage 5
+// EGRESS: Stage 6
 logic signed [FILTER_SIZE-1:0] [2*PIXEL_DATAW-1:0] sums_stage_0_reg;
 always_ff @ (posedge clk) begin
 	if(enable) begin
@@ -255,7 +257,7 @@ logic signed [2*PIXEL_DATAW-1:0] sums_stage_2;
 always_comb begin
 	sums_stage_2 = sums_stage_1[0] + sums_stage_1[1];
 end
-// EGRESS: Stage 6
+// EGRESS: Stage 7
 logic signed [2*PIXEL_DATAW-1:0] sums_stage_2_reg;
 always_ff @ (posedge clk) begin
 	if(enable)begin
@@ -275,7 +277,7 @@ always_comb begin
 end
 
 // Output interface logics
-// EGRESS: Stage 7
+// EGRESS: Stage 8
 logic unsigned [PIXEL_DATAW-1:0] r_y;
 logic r_y_valid;
 logic unsigned [R_X_COL_ADDR_WIDTH-1:0] r_x_col_idx_prev;
@@ -452,17 +454,13 @@ module pixelrowram #
 	end
 
 	always_ff @ (posedge clk) begin
-		if(reset) begin
-			i_read_addr_reg <= 0;
-		end else if(enable) begin
+		if(enable) begin
 			i_read_addr_reg <= i_read_addr;
 		end
 	end
 
 	always_ff @ (posedge clk) begin
-		if(reset) begin
-			o_read_data <= 0;
-		end else if(enable) begin
+		if(enable) begin
 			if(i_write_enable) begin
 				mem[i_write_addr] <= i_write_data;
 			end
