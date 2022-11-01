@@ -72,7 +72,7 @@ localparam R_X_COL_ADDR_WIDTH = 10;
 logic [R_X_COL_ADDR_WIDTH-1:0] r_x_write_addr [R_X_ROWS-1:0]; // 0..511+2 (10 bit)
 logic r_x_write_enable [R_X_ROWS-1:0];
 logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
-// Registered inside module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
+// Registered inside module, read a pixel from 3 rows
 logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr;
 // RAM output
 logic unsigned [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 rows of 1 pixel
@@ -85,9 +85,9 @@ pixelram pixel_ram
 	.i_write_addr(r_x_write_addr),
 	.i_write_enable(r_x_write_enable),
 	.i_write_data(r_x_write_data),
-	.i_read_addr(r_x_read_addr), // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	.i_read_addr(r_x_read_addr),
 	// RAM output
-	.o_read_data(r_x_read_data) // registered inside module, 3 words (3 x 8)
+	.o_read_data(r_x_read_data)
 );
 
 
@@ -409,9 +409,9 @@ module pixelram #
 				.i_write_addr(i_write_addr[gen_row]),
 				.i_write_enable(i_write_enable[gen_row]),
 				.i_write_data(i_write_data[gen_row]),
-				.i_read_addr(i_read_addr), // read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+				.i_read_addr(i_read_addr), // read 1 pixel
 				// RAM output
-				.o_read_data(o_read_data[gen_row]) // registered, 3 words (3 x 8)
+				.o_read_data(o_read_data[gen_row]) // registered, 1 pixel
 			);
 		end
 	endgenerate
