@@ -75,7 +75,7 @@ logic unsigned [PIXEL_DATAW-1:0] r_x_write_data [R_X_ROWS-1:0];
 // Registered inside module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]. 0..511+2 (10 bit)
 logic [R_X_COL_ADDR_WIDTH-1:0] r_x_read_addr;
 // RAM output
-logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 words (3 x 8)
+logic unsigned [PIXEL_DATAW-1:0] r_x_read_data [R_X_ROWS-1:0]; // is registered inside module, 3 rows of 1 pixel
 pixelram pixel_ram 
 (
 	.clk(clk),
@@ -144,6 +144,7 @@ always_ff @ (posedge clk) begin
 				// Reset r_x_col_idx if necessary, continuing at idx 1.
 				// Skipping idx 0 because we are at idx 0 currently
 				r_x_col_idx <= 1;
+				r_x_col_idx_read_addr_adjusted <= 0;
 
 				// Increment r_x_row_logical_idx_ipipelined only when r_x_row_logical_idx_ipipelined is 0 or 1,
 				// so that r_x_row_logical_idx_ipipelined will reach to 2 in steady state
@@ -160,9 +161,7 @@ always_ff @ (posedge clk) begin
 				r_x_col_idx <= r_x_col_idx + 1;
 
 				// Increment r_x_col_idx_read_addr_adjusted
-				if (r_x_col_idx > FILTER_SIZE-2) begin
-					r_x_col_idx_read_addr_adjusted <= r_x_col_idx + 1 - FILTER_SIZE;
-				end
+				r_x_col_idx_read_addr_adjusted <= r_x_col_idx;
 			end
 		end
 	end
@@ -211,11 +210,9 @@ end
 // So convert unsigned to signed by treating unsigned number as positive (by adding a 0 to msb)
 logic signed [FILTER_SIZE-1:0] [PIXEL_DATAW:0] r_mult_i_pixel [R_X_ROWS-1:0];
 always_ff @ (posedge clk) begin
-	for(row=0; row<R_X_ROWS; row=row+1) begin
-		for(col=0; col<FILTER_SIZE; col=col+1)begin
-			if(enable) begin
-				r_mult_i_pixel[row][col] <= {1'b0, r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]][col]};
-			end
+	if(enable) begin
+		for(row=0; row<R_X_ROWS; row=row+1) begin
+			r_mult_i_pixel[row] <= {{1'b0, r_x_read_data[r_x_row_logical_to_physical_index_epipelined[0][row]]}, r_mult_i_pixel[row][FILTER_SIZE-1:1]};
 		end
 	end
 end
@@ -380,7 +377,6 @@ module pixelram #
 	parameter PIXEL_DATAW = 8,
 	parameter IMAGE_WIDTH = 512,
 	parameter R_X_ROWS = FILTER_SIZE,
-	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
 	parameter R_X_COL_ADDR_WIDTH = 10
 )
 (
@@ -391,9 +387,9 @@ module pixelram #
 	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr [R_X_ROWS-1:0],
 	input i_write_enable [R_X_ROWS-1:0],
 	input unsigned [PIXEL_DATAW-1:0] i_write_data [R_X_ROWS-1:0],
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module
 	// RAM output
-	output unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 words (3 x 8)
+	output unsigned [PIXEL_DATAW-1:0] o_read_data [R_X_ROWS-1:0] // registered, 3 rows of 1 pixel
 );
 	// Wrap as RAM
 	// 0: [] [] [] [] [] [] [] []                         512 + 2
@@ -423,7 +419,6 @@ endmodule
 
 module pixelrowram #
 (
-	parameter FILTER_SIZE = 3,
 	parameter PIXEL_DATAW = 8,
 	parameter IMAGE_WIDTH = 512,
 	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
@@ -437,55 +432,9 @@ module pixelrowram #
 	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr,
 	input i_write_enable,
 	input unsigned [PIXEL_DATAW-1:0] i_write_data,
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 3 words (3 x 8), lower addr: i.e., addr => read [addr+2: addr]
+	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module
 	// RAM output
-	output logic unsigned [FILTER_SIZE-1:0] [PIXEL_DATAW-1:0] o_read_data // registered, 3 words (3 x 8)
-);
-	localparam NUM_R_X_ROW = FILTER_SIZE;
-	
-	// Wrap as RAM
-	// 0: [] [] [] [] [] [] [] []                         512 + 2
-	genvar gen_i;
-	generate
-		for (gen_i=0; gen_i<NUM_R_X_ROW; gen_i=gen_i+1) begin: pixel_ram_row_shard
-			parameter bit [R_X_COL_ADDR_WIDTH-1:0] gen_i_trunc = gen_i;
-			pixelrowramshard pixel_row_ram_shard
-			(
-				.clk(clk),
-				.reset(reset),
-				.enable(enable),
-				// RAM input, unregistered
-				.i_write_addr(i_write_addr),
-				.i_write_enable(i_write_enable),
-				.i_write_data(i_write_data),
-				.i_read_addr(i_read_addr+gen_i_trunc), // read 1 word
-				// RAM output
-				.o_read_data(o_read_data[gen_i_trunc]) // registered, 1 word
-			);
-		end
-	endgenerate
-endmodule
-
-/*******************************************************************************************/
-
-module pixelrowramshard #
-(
-	parameter PIXEL_DATAW = 8,
-	parameter IMAGE_WIDTH = 512,
-	parameter R_X_COL_WIDTH = IMAGE_WIDTH + 2,
-	parameter R_X_COL_ADDR_WIDTH = 10
-)
-(
-	input clk,
-	input reset,
-	input enable,
-	// RAM input, unregistered inside the module except for i_read_addr
-	input [R_X_COL_ADDR_WIDTH-1:0] i_write_addr,
-	input i_write_enable,
-	input unsigned [PIXEL_DATAW-1:0] i_write_data,
-	input [R_X_COL_ADDR_WIDTH-1:0] i_read_addr, // registered inside the module, read 1 word
-	// RAM output
-	output logic unsigned [PIXEL_DATAW-1:0] o_read_data // registered, 1 word
+	output logic unsigned [PIXEL_DATAW-1:0] o_read_data // registered
 );
 	// Wrap as RAM
 	// 0: [] [] [] [] [] [] [] []                         512 + 2
