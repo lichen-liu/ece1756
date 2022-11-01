@@ -27,7 +27,7 @@ d_t = 264222 / 549.45M = 480.885us
 9.267 GOPS
 
 Throughput of full device (GOPS)
-506 * 9.267 GOPS = 4689.102 GOPS
+506 * 9.267 GOPS = 4689.198 GOPS
 
 Total Power for full device (W)
 Clock Network (dynamic): 2.82mW

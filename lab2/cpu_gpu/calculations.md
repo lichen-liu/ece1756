@@ -9,6 +9,8 @@ nvcc conv_gpu.cu utils.cpp -o conv_gpu
 ./run_gpu.sh 1 4 16 64
 ```
 
+ms                                      1           4           16          64
+
 GPU                                     0.0150802,  0.0400716,  0.137443,   0.506027
 
 CPU (basic - no opt - 1 thread)         6.1022,     24.3058,    97.235,     389.021
