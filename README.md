@@ -4,7 +4,7 @@
 Report: [LATEX](https://www.overleaf.com/project/633a625e21adf003dcd788bb)
 
 ## Lab2
-
+Report: [LATEX](https://www.overleaf.com/project/6360eb69ecda4de91a703475)
 ### ModelSim
 Open ModelSim
 ```
