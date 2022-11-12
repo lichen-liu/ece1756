@@ -1,4 +1,4 @@
-## TO RUN
+## To Run
 ```bash
 python3 -m ram_mapper
 ```
