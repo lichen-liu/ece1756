@@ -21,3 +21,6 @@ view wave # Open the waveform window
 run -all # Run simulation to completion which is OK because the testbench applies a fixed number of
      inputs and then issues a $stop command
 ```
+
+## Lab3
+Refer to: [README](lab3/README.md)
