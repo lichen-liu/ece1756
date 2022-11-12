@@ -6,7 +6,6 @@ def main():
 
 
 def hello():
-    lr = logical_ram.LogicalRam(
-        circuit_id=0, ram_id=0, mode=logical_ram.RamMode['SimpleDualPort'], depth=24, width=32)
+    lr = logical_ram.LogicalRam.from_str('0	0	SimpleDualPort	45	12')
     print('hello')
     print(lr)
