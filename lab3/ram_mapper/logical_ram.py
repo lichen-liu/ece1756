@@ -1,6 +1,7 @@
-from typing import NamedTuple, OrderedDict, TypeVar, Type
+from typing import Iterator, NamedTuple, OrderedDict, TypeVar, Type
 from collections import OrderedDict
 from enum import Flag, auto
+import logging
 
 
 class RamMode(Flag):
@@ -37,13 +38,23 @@ class LogicalRam(NamedTuple):
             width=int(width_str))
 
 
+def parse_grouped_logical_ram(lines_iter: Iterator) -> OrderedDict[OrderedDict[LogicalRam]]:
+    # line 0: Num_Circuits 69
+    first_line = next(lines_iter).rstrip()
+    _, num_circuits_str = first_line.split()
+    num_circuits = int(num_circuits_str)
+    # line 1: Circuit	RamID	Mode		Depth	Width
+    second_line = next(lines_iter).rstrip()
+    # Rest of lines
+    logical_rams = [LogicalRam.from_str(line.rstrip()) for line in lines_iter]
+    # Debug prints
+    logging.debug('After parsing:')
+    logging.debug(f'  first_line={first_line}')
+    logging.debug(f'  second_line={second_line}')
+    logging.debug(f'  len(logical_rams)={len(logical_rams)}')
+    logging.debug(f'  num_circuits={num_circuits}')
+
+
 def read_grouped_logical_ram_from_file(filename: str) -> OrderedDict[OrderedDict[LogicalRam]]:
-    logical_rams = list()
     with open(filename, 'r') as f:
-        f_iter = iter(f.readline, '')
-        first_line = next(f_iter).rstrip()
-        second_line = next(f_iter).rstrip()
-        logical_rams = [LogicalRam.from_str(line.rstrip()) for line in f_iter]
-        print(first_line)
-        print(second_line)
-        print(len(logical_rams))
+        return parse_grouped_logical_ram(iter(f.readline, ''))
