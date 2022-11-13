@@ -1,4 +1,5 @@
-from typing import NamedTuple, TypeVar, Type
+from typing import NamedTuple, OrderedDict, TypeVar, Type
+from collections import OrderedDict
 from enum import Flag, auto
 
 
@@ -34,3 +35,15 @@ class LogicalRam(NamedTuple):
             mode=RamMode[mode_str],
             depth=int(depth_str),
             width=int(width_str))
+
+
+def read_grouped_logical_ram_from_file(filename: str) -> OrderedDict[OrderedDict[LogicalRam]]:
+    logical_rams = list()
+    with open(filename, 'r') as f:
+        f_iter = iter(f.readline, '')
+        first_line = next(f_iter).rstrip()
+        second_line = next(f_iter).rstrip()
+        logical_rams = [LogicalRam.from_str(line.rstrip()) for line in f_iter]
+        print(first_line)
+        print(second_line)
+        print(len(logical_rams))
