@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple, Type, TypeVar
 from ram_mapper.logical_ram import RamMode
 
 
@@ -9,12 +9,20 @@ class RamType(Enum):
     BLOCK_RAM = 'b'
 
 
+# Create a generic variable that can be 'LogicalRam', or any subclass.
+RamShapeT = TypeVar('RamShapeT', bound='RamShape')
+
+
 class RamShape(NamedTuple):
     width: int
     depth: int
 
     def get_size(self) -> int:
         return self.width * self.depth
+
+    @classmethod
+    def from_size_width(cls: Type[RamShapeT], size: int, width: int) -> RamShapeT:
+        pass
 
 
 class RamArchProperty(ABC):
