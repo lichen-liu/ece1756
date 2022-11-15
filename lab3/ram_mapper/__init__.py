@@ -1,5 +1,5 @@
-from . import driver
-from .utils import init_logger
+from ram_mapper import driver
+from ram_mapper.utils import init_logger
 
 
 def main():

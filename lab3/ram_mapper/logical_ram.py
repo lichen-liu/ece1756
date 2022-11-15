@@ -1,4 +1,4 @@
-from typing import Iterator, NamedTuple, OrderedDict, TypeVar, Type, get_type_hints
+from typing import Iterator, NamedTuple, OrderedDict, TypeVar, Type
 from collections import OrderedDict, defaultdict
 from enum import Flag, auto
 import logging
