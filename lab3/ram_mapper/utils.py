@@ -11,11 +11,17 @@ def init_logger(level=logging.DEBUG):
 
 
 def highest_pow2_below(n: int) -> int:
+    '''
+    Inclusive
+    '''
     p = int(math.log(n, 2))
     return int(pow(2, p))
 
 
 def all_pow2_below(x: int) -> List[int]:
+    '''
+    Descending order, inclusive
+    '''
     def all_pow2_below_helper(a: int, l: List[int]) -> List[int]:
         if a >= 1:
             a = highest_pow2_below(a)
