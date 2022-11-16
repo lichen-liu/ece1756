@@ -1,13 +1,13 @@
-from ram_mapper.physical_ram import RamShape
-# from ram_mapper.stratix_iv_ram import ConcreteBlockRamArch
+import logging
+from ram_mapper import stratix_iv_ram
 from ram_mapper import logical_ram
 
 
 def run():
     logical_ram.read_grouped_LogicalRam_from_file('logical_rams.txt')
 
-    # bram = ConcreteBlockRamArch(0, RamShape.from_size(1024, 32), 10)
-    # print(bram)
-    # x = logical_ram.RamMode.SimpleDualPort | logical_ram.RamMode.TrueDualPort
-    # print(x)
-    # print(type(x))
+    ramarchs = stratix_iv_ram.create_all_from_str(
+        '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
+    logging.info('RAM Archs:')
+    for ramarch in ramarchs:
+        logging.info(ramarch)

@@ -1,7 +1,7 @@
 import unittest
 from ram_mapper.logical_ram import RamMode
 from ram_mapper.physical_ram import RamType, RamShape
-from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str
+from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str, LUTRamArch, create_all_from_strs, create_all_from_str
 
 
 class StratixIVRamTestCase(unittest.TestCase):
@@ -40,6 +40,22 @@ class StratixIVRamTestCase(unittest.TestCase):
             RamMode.TrueDualPort), reduced_width_shapes)
 
     def test_create_from_str(self):
-        create_from_str(0, '-b 8192 32 10 1')
-        create_from_str(0, '-b 131072 128 300 1')
-        create_from_str(0, '-l 1 1')
+        self.assertEqual(create_from_str(0, '-b 8192 32 10 1'),
+                         BlockRamArch(0, RamShape.from_size(8192, 32), (10, 1)))
+        self.assertEqual(create_from_str(0, '-b 131072 128 300 1'),
+                         BlockRamArch(0, RamShape.from_size(131072, 128), (300, 1)))
+        self.assertEqual(create_from_str(0, '-l 1 1'), LUTRamArch(0, (1, 1)))
+
+    def test_create_all_from_strs(self):
+        actual = [LUTRamArch(0, (1, 1)),
+                  BlockRamArch(1, RamShape.from_size(8192, 32), (10, 1)),
+                  BlockRamArch(2, RamShape.from_size(131072, 128), (300, 1))]
+        self.assertEqual(create_all_from_strs(
+            ['-l 1 1', '-b 8192 32 10 1', '-b 131072 128 300 1']), actual)
+
+    def test_create_all_from_str(self):
+        actual = [LUTRamArch(0, (1, 1)),
+                  BlockRamArch(1, RamShape.from_size(8192, 32), (10, 1)),
+                  BlockRamArch(2, RamShape.from_size(131072, 128), (300, 1))]
+        self.assertEqual(create_all_from_str('-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'),
+                         actual)

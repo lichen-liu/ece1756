@@ -28,6 +28,12 @@ class RamShape(NamedTuple):
     def __str__(self):
         return f'W{self.width}xD{self.depth}={self.get_size()}'
 
+    def as_tuple(self) -> Tuple[int, int, int]:
+        '''
+        For comparison, using lexical order: (size, width, depth)
+        '''
+        return (self.get_size(), self.width, self.depth)
+
 
 class RamArchProperty(ABC):
     '''
@@ -62,7 +68,10 @@ class RamArchProperty(ABC):
 
     def __str__(self):
         ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
-        return f'<{self.get_ram_type().name}>....<{self.get_max_width()}>....<{self.get_supported_mode()}>....<LB:self{ratio_of_lb_str}>'
+        return f'{self.get_ram_type().name} {self.get_max_width()} ({self.get_supported_mode()}) LB:self{ratio_of_lb_str}'
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
 class RamArch(RamArchProperty):
@@ -77,4 +86,4 @@ class RamArch(RamArchProperty):
         return self._id
 
     def __str__(self):
-        return f'[{self.get_id()}]....{super().__str__()}'
+        return f'<{self.get_id()} {super().__str__()}>'
