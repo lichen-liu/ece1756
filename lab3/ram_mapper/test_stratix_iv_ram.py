@@ -1,7 +1,7 @@
 import unittest
 from ram_mapper.logical_ram import RamMode
 from ram_mapper.physical_ram import RamType, RamShape
-from ram_mapper.stratix_iv_ram import ConcreteBlockRamArch
+from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str
 
 
 class StratixIVRamTestCase(unittest.TestCase):
@@ -10,8 +10,8 @@ class StratixIVRamTestCase(unittest.TestCase):
         # init_logger()
         return super().setUp()
 
-    def test_ConcreteBlockRamArch(self):
-        ram = ConcreteBlockRamArch(0, RamShape.from_size(256, 16), (10, 1))
+    def test_BlockRamArch(self):
+        ram = BlockRamArch(0, RamShape.from_size(256, 16), (10, 1))
         self.assertEqual(ram.get_id(), 0)
         self.assertEqual(ram.get_max_width(), RamShape(16, 16))
         self.assertEqual(ram.get_ram_type(), RamType.BLOCK_RAM)
@@ -38,3 +38,8 @@ class StratixIVRamTestCase(unittest.TestCase):
                                 RamShape.from_size(256, 1)]
         self.assertEqual(ram.get_shapes_for_mode(
             RamMode.TrueDualPort), reduced_width_shapes)
+
+    def test_create_from_str(self):
+        create_from_str(0, '-b 8192 32 10 1')
+        create_from_str(0, '-b 131072 128 300 1')
+        create_from_str(0, '-l 1 1')
