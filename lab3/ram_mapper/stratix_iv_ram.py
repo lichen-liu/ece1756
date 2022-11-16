@@ -11,19 +11,19 @@ class BlockRamArch(RamArch):
     def get_ram_type(self) -> RamType:
         return RamType.BLOCK_RAM
 
-    def get_supported_ram_mode(self) -> RamMode:
+    def get_supported_mode(self) -> RamMode:
         return RamMode.ROM | RamMode.SinglePort | RamMode.SimpleDualPort | RamMode.TrueDualPort
 
-    def get_shapes_for_ram_mode(self, mode: RamMode) -> List[RamShape]:
-        assert len(mode) == 1
-        assert mode in self.get_supported_ram_mode()
+    def get_shapes_for_mode(self, mode: RamMode) -> List[RamShape]:
+        assert mode in RamMode
+        assert mode in self.get_supported_mode()
         max_width = self.get_max_width().width
         mode_max_width = max_width - 1 if mode == RamMode.TrueDualPort else max_width
-        return [RamShape.from_size_width(self.get_size(), w) for w in utils.all_pow2_below(mode_max_width)]
+        return [RamShape.from_size(self.get_size(), w) for w in utils.all_pow2_below(mode_max_width)]
 
 
 class ConcreteBlockRamArch(BlockRamArch):
-    def __init__(self, id: int, max_width_shape: RamShape, ratio_of_LB: int):
+    def __init__(self, id: int, max_width_shape: RamShape, ratio_of_LB: Tuple[int, int]):
         super().__init__(id)
         self._max_width_shape = max_width_shape
         self._ratio_of_LB = ratio_of_LB
@@ -32,7 +32,7 @@ class ConcreteBlockRamArch(BlockRamArch):
         return self._max_width_shape
 
     def get_ratio_of_LB(self) -> Tuple[int, int]:
-        return (self._ratio_of_LB, 1)
+        return self._ratio_of_LB
 
 
 class LUTRamArch(RamArch):
@@ -42,5 +42,5 @@ class LUTRamArch(RamArch):
     def get_ram_type(self) -> RamType:
         return RamType.LUTRAM
 
-    def get_supported_ram_mode(self) -> RamMode:
+    def get_supported_mode(self) -> RamMode:
         return RamMode.ROM or RamMode.SinglePort or RamMode.SimpleDualPort

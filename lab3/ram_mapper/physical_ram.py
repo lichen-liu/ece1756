@@ -21,7 +21,7 @@ class RamShape(NamedTuple):
         return self.width * self.depth
 
     @classmethod
-    def from_size_width(cls: Type[RamShapeT], size: int, width: int) -> RamShapeT:
+    def from_size(cls: Type[RamShapeT], size: int, width: int) -> RamShapeT:
         assert size % width == 0
         return cls(width=int(width), depth=int(size/width))
 
@@ -53,16 +53,16 @@ class RamArchProperty(ABC):
         pass
 
     @abstractmethod
-    def get_supported_ram_mode(self) -> RamMode:
+    def get_supported_mode(self) -> RamMode:
         pass
 
     @abstractmethod
-    def get_shapes_for_ram_mode(self, mode: RamMode) -> List[RamShape]:
+    def get_shapes_for_mode(self, mode: RamMode) -> List[RamShape]:
         pass
 
     def __str__(self):
         ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
-        return f'<{self.get_ram_type().name}>....<{self.get_max_width()}>....<{self.get_supported_ram_mode()}>....<LB:self{ratio_of_lb_str}>'
+        return f'<{self.get_ram_type().name}>....<{self.get_max_width()}>....<{self.get_supported_mode()}>....<LB:self{ratio_of_lb_str}>'
 
 
 class RamArch(RamArchProperty):

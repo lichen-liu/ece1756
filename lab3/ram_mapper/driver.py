@@ -6,7 +6,7 @@ from ram_mapper import logical_ram
 def run():
     logical_ram.read_grouped_LogicalRam_from_file('logical_rams.txt')
 
-    bram = ConcreteBlockRamArch(0, RamShape.from_size_width(1024, 32), 10)
+    bram = ConcreteBlockRamArch(0, RamShape.from_size(1024, 32), 10)
     print(bram)
     # x = logical_ram.RamMode.SimpleDualPort | logical_ram.RamMode.TrueDualPort
     # print(x)
