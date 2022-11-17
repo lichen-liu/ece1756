@@ -8,6 +8,16 @@ class LogicalRamTestCase(unittest.TestCase):
         # init_logger()
         return super().setUp()
 
+    def test_RamMode_in(self):
+        mode0 = RamMode.SimpleDualPort | RamMode.ROM
+        self.assertNotIn(mode0, RamMode)
+        self.assertIn(RamMode.SimpleDualPort, mode0)
+        self.assertNotIn(RamMode.TrueDualPort, mode0)
+        mode1 = RamMode.TrueDualPort
+        self.assertIn(mode1, RamMode)
+        self.assertIn(RamMode.TrueDualPort, mode1)
+        self.assertNotIn(RamMode.ROM, mode1)
+
     def test_LogicalRam_from_str(self):
         self.assertEqual(
             LogicalRam.from_str('0	0	SimpleDualPort	45	12'),
