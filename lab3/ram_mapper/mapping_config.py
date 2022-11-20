@@ -20,7 +20,7 @@ class ConfigPrinter(ABC):
         '''
         1 level = 4 spaces
         '''
-        return level * ' '
+        return level * 4 * ' '
 
     @abstractmethod
     def print(self, level: int) -> str:
@@ -59,7 +59,9 @@ class LogicalRamConfig(ConfigVerifier, ConfigPrinter):
 
     def print(self, level: int) -> str:
         self_str = f'LW {self.logical_width} LD {self.logical_depth}'
-        child_str = ' ' + self.prc.print(level) if self.prc is not None else self.clrc.print(level)
+        child_str = ' ' + \
+            self.prc.print(
+                level) if self.prc is not None else self.clrc.print(level)
         return self_str + child_str
 
 
