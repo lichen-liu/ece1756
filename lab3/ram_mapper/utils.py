@@ -1,6 +1,7 @@
+from __future__ import annotations
 import logging
 import math
-from typing import List
+from typing import List, NamedTuple, Optional, Type
 
 
 def init_logger(level=logging.DEBUG):
@@ -30,3 +31,35 @@ def all_pow2_below(x: int) -> List[int]:
                 return all_pow2_below_helper(a - 1, l)
         return l
     return all_pow2_below_helper(x, [])
+
+
+class Result(NamedTuple):
+    '''
+    (valid=True, None) or (valid=False, reason)
+    '''
+    valid: bool
+    reason: Optional[str]
+
+    def __bool__(self) -> bool:
+        return self.valid
+
+    @classmethod
+    def good(cls: Type[Result]) -> Result:
+        return cls(valid=True, reason=None)
+
+    @classmethod
+    def bad(cls: Type[Result], reason: str) -> Result:
+        return cls(valid=False, reason=reason)
+
+    @classmethod
+    def satisfies(cls: Type[Result], condition: bool, reason: str) -> Result:
+        '''
+        Example - Early-exit if fails the check
+
+        if not (r := Result.satisfies(1+1 != 2, '1+1 must be 2')):
+            return r
+        '''
+        if condition:
+            return cls.good()
+        else:
+            return cls.bad(reason)
