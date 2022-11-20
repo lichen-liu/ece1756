@@ -8,6 +8,11 @@ python3 -m ram_mapper
 python3 -m unittest
 ```
 
+## Count number of lines
+```bash
+find . -name "*.py" | xargs wc -l | sort -nr
+```
+
 ## Notes
 Combine RAMs to make wider RAM with no extra logic
 • Combine RAMs to make deeper RAM with some extra logic – Which RAM to write enable (decode upper address bits)
