@@ -76,10 +76,9 @@ class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
 
     def print(self, level: int) -> str:
         self_str = f'LW {self.logical_width} LD {self.logical_depth}'
-        child_str = ' ' + \
-            self.prc.print(
-                level) if self.prc is not None else self.clrc.print(level)
-        return self_str + child_str
+        child_str = self.prc.print(
+            level) if self.prc is not None else self.clrc.print(level)
+        return self_str + ' ' + child_str
 
     def get_shape(self) -> RamShape:
         return RamShape(width=self.logical_width, depth=self.logical_depth)
@@ -110,7 +109,7 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
             return Result.expect(lrc_l_shape.depth == lrc_r_shape.depth, 'Requires depth to match in parallel mode')
 
     def print(self, level: int) -> str:
-        self_str = f' {self.split.name}'
+        self_str = f'{self.split.name}'
         level += 1
         lrc_l_str = ConfigPrinter.indent_str(level) + self.lrc_l.print(level)
         lrc_r_str = ConfigPrinter.indent_str(level) + self.lrc_r.print(level)

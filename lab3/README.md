@@ -22,3 +22,5 @@ Combine RAMs to make wider RAM with no extra logic
 Duplicate (double) implementation to make 2nd R port
 – Any alternative?
 • If physical RAM fast enough, can time-domain multiplex one physical port to make more logical ports
+
+## Todo
