@@ -6,6 +6,7 @@ from typing import Optional
 from ram_mapper.physical_ram import RamShape
 from ram_mapper.utils import Result
 from ram_mapper.logical_ram import RamMode
+from ram_mapper.stratix_iv_ram import determine_extra_luts
 
 
 class ConfigVerifier(ABC):
@@ -49,6 +50,13 @@ class CircuitRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     def get_shape(self) -> RamShape:
         return self.lrc.get_shape()
 
+    def update_extra_luts(self,  usage_mode: RamMode) -> int:
+        '''
+        Updates num_extra_lut and return
+        '''
+        self.num_extra_lut = self.lrc.get_extra_luts(usage_mode=usage_mode)
+        return self.num_extra_lut
+
 
 @dataclass
 class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
@@ -82,6 +90,21 @@ class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
 
     def get_shape(self) -> RamShape:
         return RamShape(width=self.logical_width, depth=self.logical_depth)
+
+    def get_extra_luts(self, usage_mode: RamMode) -> int:
+        if self.prc is not None:
+            return determine_extra_luts(num_series=self.prc.num_series,
+                                        logical_w=self.logical_width, ram_mode=usage_mode)
+        else:
+            lrc_l_extra_luts = self.clrc.lrc_l.get_extra_luts(
+                usage_mode=usage_mode)
+            lrc_r_extra_luts = self.clrc.lrc_r.get_extra_luts(
+                usage_mode=usage_mode)
+            clrc_extra_luts = 0
+            if self.clrc.split == RamSplitDimension.series:
+                clrc_extra_luts = determine_extra_luts(
+                    num_series=2, logical_w=self.logical_width, ram_mode=usage_mode)
+            return lrc_l_extra_luts + lrc_r_extra_luts + clrc_extra_luts
 
 
 class RamSplitDimension(Enum):

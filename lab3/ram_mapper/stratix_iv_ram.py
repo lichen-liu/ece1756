@@ -102,7 +102,7 @@ def determine_write_decoder_luts(r: int) -> int:
     '''
     r - r physical RAMs in serial
     '''
-    assert r > 0
+    assert r > 1
     return 1 if r == 2 else r
 
 
@@ -118,7 +118,7 @@ def determine_read_mux_luts_per_bit(r: int) -> int:
         else:
             # need cascade, go to next level
             return n_4mux + helper(n_4mux)
-    assert r > 0
+    assert r > 1
     return helper(r)
 
 
@@ -131,16 +131,20 @@ def determine_read_mux_luts(r: int, logical_w: int) -> int:
     return logical_w*determine_read_mux_luts_per_bit(r)
 
 
-def determine_extra_luts(num_serial: int, logical_w: int, ram_mode: RamMode):
+def determine_extra_luts(num_series: int, logical_w: int, ram_mode: RamMode):
     '''
-    r - r physical RAMs in serial
+    num_series - r physical RAMs in serial
     logical_w - the width of the logical RAM
     ram_mode - RamMode
     '''
     assert ram_mode in RamMode
-    assert num_serial <= 16
-    write_luts = determine_write_decoder_luts(r=num_serial)
-    read_luts = determine_read_mux_luts(r=num_serial, logical_w=logical_w)
+    assert num_series <= 16
+
+    if num_series == 1:
+        return 0
+
+    write_luts = determine_write_decoder_luts(r=num_series)
+    read_luts = determine_read_mux_luts(r=num_series, logical_w=logical_w)
     if ram_mode == RamMode.ROM:
         # r
         return read_luts
@@ -153,3 +157,5 @@ def determine_extra_luts(num_serial: int, logical_w: int, ram_mode: RamMode):
     elif ram_mode == RamMode.TrueDualPort:
         # r/w + r/w
         return 2*(read_luts + write_luts)
+    else:
+        assert False, 'Unsupported RamMode'
