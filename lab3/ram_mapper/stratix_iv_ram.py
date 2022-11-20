@@ -98,9 +98,58 @@ def create_all_from_str(raw_checker_str: str) -> List[SIVRamArch]:
 #    A single 4:1 multiplexer can be implemented in a 6-LUT (and uses all 6 inputs). Larger multiplexers can be built by cascading 4:1 multiplexers together in a tree.
 
 
-def determine_write_decoder_luts(r: int):
+def determine_write_decoder_luts(r: int) -> int:
     '''
     r - r physical RAMs in serial
     '''
     assert r > 0
     return 1 if r == 2 else r
+
+
+def determine_read_mux_luts_per_bit(r: int) -> int:
+    '''
+    r - r physical RAMs in serial
+    '''
+    def helper(r: int) -> int:
+        n_4mux = int(math.ceil(r / 4.0))
+        if n_4mux == 1:
+            # no cascade needed, terminates at current level
+            return n_4mux
+        else:
+            # need cascade, go to next level
+            return n_4mux + helper(n_4mux)
+    assert r > 0
+    return helper(r)
+
+
+def determine_read_mux_luts(r: int, logical_w: int) -> int:
+    '''
+    r - r physical RAMs in serial
+    logical_w - the width of the logical RAM
+    '''
+    assert logical_w > 0
+    return logical_w*determine_read_mux_luts_per_bit(r)
+
+
+def determine_extra_luts(num_serial: int, logical_w: int, ram_mode: RamMode):
+    '''
+    r - r physical RAMs in serial
+    logical_w - the width of the logical RAM
+    ram_mode - RamMode
+    '''
+    assert ram_mode in RamMode
+    assert num_serial <= 16
+    write_luts = determine_write_decoder_luts(r=num_serial)
+    read_luts = determine_read_mux_luts(r=num_serial, logical_w=logical_w)
+    if ram_mode == RamMode.ROM:
+        # r
+        return read_luts
+    elif ram_mode == RamMode.SinglePort:
+        # r/w
+        return read_luts + write_luts
+    elif ram_mode == RamMode.SimpleDualPort:
+        # r + w
+        return read_luts + write_luts
+    elif ram_mode == RamMode.TrueDualPort:
+        # r/w + r/w
+        return 2*(read_luts + write_luts)

@@ -1,7 +1,7 @@
 import unittest
 from ram_mapper.logical_ram import RamMode
 from ram_mapper.physical_ram import RamType, RamShape
-from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str, LUTRamArch, create_all_from_strs, create_all_from_str, determine_write_decoder_luts
+from ram_mapper.stratix_iv_ram import *
 
 
 class StratixIVRamTestCase(unittest.TestCase):
@@ -65,3 +65,23 @@ class StratixIVRamTestCase(unittest.TestCase):
             9, 9), (10, 10), (11, 11), (12, 12), (13, 13), (14, 14), (15, 15), (16, 16)]
         for r, expected_result in expected_pair:
             self.assertEqual(determine_write_decoder_luts(r), expected_result)
+
+    def test_determine_read_mux_luts_per_bit(self):
+        expected_pair = [(1, 1), (2, 1), (3, 1), (4, 1), (5, 3), (6, 3), (7, 3), (
+            8, 3), (9, 4), (10, 4), (11, 4), (12, 4), (13, 5), (14, 5), (15, 5), (16, 5)]
+        for r, expected_result in expected_pair:
+            self.assertEqual(
+                determine_read_mux_luts_per_bit(r), expected_result)
+
+    def test_determine_read_mux_luts(self):
+        self.assertEqual(determine_read_mux_luts(r=8, logical_w=30), 3*30)
+
+    def test_determine_extra_luts(self):
+        self.assertEqual(determine_extra_luts(
+            num_serial=8, logical_w=30, ram_mode=RamMode.ROM), 3*30)
+        self.assertEqual(determine_extra_luts(
+            num_serial=8, logical_w=30, ram_mode=RamMode.SinglePort), 3*30 + 8)
+        self.assertEqual(determine_extra_luts(
+            num_serial=8, logical_w=30, ram_mode=RamMode.SimpleDualPort), 3*30 + 8)
+        self.assertEqual(determine_extra_luts(
+            num_serial=8, logical_w=30, ram_mode=RamMode.TrueDualPort), 2*(3*30 + 8))
