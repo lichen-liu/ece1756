@@ -1,0 +1,3 @@
+Num_Circuits 1
+Circuit RamID   Mode        Depth   Width
+0       0       SinglePort  8200    30
