@@ -1,7 +1,7 @@
 import unittest
 from ram_mapper.logical_ram import RamMode
 from ram_mapper.physical_ram import RamType, RamShape
-from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str, LUTRamArch, create_all_from_strs, create_all_from_str
+from ram_mapper.stratix_iv_ram import BlockRamArch, create_from_str, LUTRamArch, create_all_from_strs, create_all_from_str, determine_write_decoder_luts
 
 
 class StratixIVRamTestCase(unittest.TestCase):
@@ -59,3 +59,9 @@ class StratixIVRamTestCase(unittest.TestCase):
                   BlockRamArch(2, RamShape.from_size(131072, 128), (300, 1))]
         self.assertEqual(create_all_from_str('-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'),
                          actual)
+
+    def test_determine_write_decoder_luts(self):
+        expected_pair = [(1, 1), (2, 1), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (
+            9, 9), (10, 10), (11, 11), (12, 12), (13, 13), (14, 14), (15, 15), (16, 16)]
+        for r, expected_result in expected_pair:
+            self.assertEqual(determine_write_decoder_luts(r), expected_result)

@@ -29,8 +29,8 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual(all_pow2_below(17), [16, 8, 4, 2, 1])
 
     def test_is_pow2(self):
-        result_pair = [(1, True), (2, True), (3, False), (4, True), (5, False), (6, False), (7, False), (8, True),
-                       (9, False), (10, False), (11, False), (12, False), (13, False), (14, False), (15, False), (16, True)]
+        expected_pair = [(1, True), (2, True), (3, False), (4, True), (5, False), (6, False), (7, False), (8, True),
+                         (9, False), (10, False), (11, False), (12, False), (13, False), (14, False), (15, False), (16, True)]
 
-        for n, expected_result in result_pair:
+        for n, expected_result in expected_pair:
             self.assertEqual(is_pow2(n), expected_result)

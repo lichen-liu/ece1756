@@ -1,3 +1,4 @@
+import math
 from abc import abstractmethod
 from typing import List, Tuple
 from ram_mapper import utils
@@ -84,3 +85,22 @@ def create_all_from_strs(checker_strs: List[str]) -> List[SIVRamArch]:
 
 def create_all_from_str(raw_checker_str: str) -> List[SIVRamArch]:
     return create_all_from_strs(list(filter(len, raw_checker_str.split('-'))))
+
+
+# When physical RAMs are combined in parallel to create a wider word, no extra logic is needed.
+# When physical RAMs are combined to implement a deeper RAM, extra logic is needed. If we combine R physical RAMs to make a logical RAM that is R times deeper than the maximum depth of the physical RAM, we will need to include extra logic to:
+# 1. Decode which RAM we must activate on a write.
+#    This requires a single log2(R) : R decoder.
+#    This can be built using R LUTs, each of which must have log2(R) inputs.
+#    Note also that for the special case of a 1:2 decoder, one of the two (1-input) LUTs is a buffer, so you really only need 1 (not 2) LUTs for that case.
+# 2. Multiplexers to select the appropriate read data word from the various physical RAM blocks.
+#    A total of W multiplexers of size R : 1 will be required, where W is the width of the logical RAM.
+#    A single 4:1 multiplexer can be implemented in a 6-LUT (and uses all 6 inputs). Larger multiplexers can be built by cascading 4:1 multiplexers together in a tree.
+
+
+def determine_write_decoder_luts(r: int):
+    '''
+    r - r physical RAMs in serial
+    '''
+    assert r > 0
+    return 1 if r == 2 else r
