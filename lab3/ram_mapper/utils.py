@@ -52,11 +52,11 @@ class Result(NamedTuple):
         return cls(valid=False, reason=reason)
 
     @classmethod
-    def satisfies(cls: Type[Result], condition: bool, reason: str) -> Result:
+    def expect(cls: Type[Result], condition: bool, reason: str) -> Result:
         '''
         Example - Early-exit if fails the check
 
-        if not (r := Result.satisfies(1+1 != 2, '1+1 must be 2')):
+        if not (r := Result.expect(1+1 != 2, '1+1 must be 2')):
             return r
         '''
         if condition:

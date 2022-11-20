@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
+from ram_mapper.physical_ram import RamShape
 from ram_mapper.utils import Result
-
 from ram_mapper.logical_ram import RamMode
 
 
@@ -27,8 +27,14 @@ class ConfigPrinter(ABC):
         pass
 
 
+class ConfigShape(ABC):
+    @abstractmethod
+    def get_shape(self) -> RamShape:
+        pass
+
+
 @dataclass
-class CircuitRamConfig(ConfigVerifier, ConfigPrinter):
+class CircuitRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     circuit_id: int
     ram_id: int
     num_extra_lut: int
@@ -40,22 +46,33 @@ class CircuitRamConfig(ConfigVerifier, ConfigPrinter):
     def print(self, level: int) -> str:
         return f'{self.circuit_id} {self.ram_id} {self.num_extra_lut} {self.lrc.print(level)}'
 
+    def get_shape(self) -> RamShape:
+        return self.lrc.get_shape()
+
 
 @dataclass
-class LogicalRamConfig(ConfigVerifier, ConfigPrinter):
+class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     logical_width: int
     logical_depth: int
     clrc: Optional[CombinedLogicalRamConfig] = None
     prc: Optional[PhysicalRamConfig] = None
 
     def verify(self) -> Result:
-        if not (r := Result.satisfies((self.clrc is None) != (
+        if not (r := Result.expect((self.clrc is None) != (
                 self.prc is None), 'Requires mutually exclusive CombinedLogicalRamConfig or PhysicalRamConfig')):
             return r
         if self.clrc is not None:
-            return self.clrc.verify()
+            if not (r := self.clrc.verify()):
+                return r
+            return Result.expect(self.clrc.get_shape() == self.get_shape(),
+                                 'Requires the actual physical shape from CombinedLogicalRamConfig to match the expected logical shape')
         else:
-            return self.prc.verify()
+            if not (r := self.prc.verify()):
+                return r
+            prc_shape = self.prc.get_shape()
+            self_shape = self.get_shape()
+            return Result.expect(prc_shape.width >= self_shape.width and prc_shape.depth >= self_shape.depth,
+                                 'Requires the actual physical shape from PhysicalRamConfig to be not less than (both width and depth) the expected logical shape')
 
     def print(self, level: int) -> str:
         self_str = f'LW {self.logical_width} LD {self.logical_depth}'
@@ -64,6 +81,9 @@ class LogicalRamConfig(ConfigVerifier, ConfigPrinter):
                 level) if self.prc is not None else self.clrc.print(level)
         return self_str + child_str
 
+    def get_shape(self) -> RamShape:
+        return RamShape(width=self.logical_width, depth=self.logical_depth)
+
 
 class RamSplitDimension(Enum):
     series = auto()
@@ -71,7 +91,7 @@ class RamSplitDimension(Enum):
 
 
 @dataclass
-class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter):
+class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     split: RamSplitDimension
     lrc_l: LogicalRamConfig
     lrc_r: LogicalRamConfig
@@ -79,7 +99,15 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter):
     def verify(self) -> Result:
         if not (r := self.lrc_l.verify()):
             return r
-        return self.lrc_r.verify()
+        if not (r := self.lrc_r.verify()):
+            return r
+
+        lrc_l_shape = self.lrc_l.get_shape()
+        lrc_r_shape = self.lrc_r.get_shape()
+        if self.split == RamSplitDimension.series:
+            return Result.expect(lrc_l_shape.width == lrc_r_shape.width, 'Requires width to match in series mode')
+        else:
+            return Result.expect(lrc_l_shape.depth == lrc_r_shape.depth, 'Requires depth to match in parallel mode')
 
     def print(self, level: int) -> str:
         self_str = f' {self.split.name}'
@@ -88,9 +116,17 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter):
         lrc_r_str = ConfigPrinter.indent_str(level) + self.lrc_r.print(level)
         return f'{self_str}\n{lrc_l_str}\n{lrc_r_str}'
 
+    def get_shape(self) -> RamShape:
+        lrc_l_shape = self.lrc_l.get_shape()
+        lrc_r_shape = self.lrc_r.get_shape()
+        if self.split == RamSplitDimension.series:
+            return RamShape(width=lrc_l_shape.width, depth=lrc_l_shape.depth+lrc_r_shape.depth)
+        else:
+            return RamShape(width=lrc_l_shape.width+lrc_r_shape.width, depth=lrc_l_shape.depth)
+
 
 @dataclass
-class PhysicalRamConfig(ConfigVerifier, ConfigPrinter):
+class PhysicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     id: int
     num_series: int
     num_parallel: int
@@ -104,3 +140,6 @@ class PhysicalRamConfig(ConfigVerifier, ConfigPrinter):
 
     def print(self, level: int) -> str:
         return f'ID {self.id} S {self.num_series} P {self.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.width} D {self.depth}'
+
+    def get_shape(self) -> RamShape:
+        return RamShape(width=self.num_parallel*self.width, depth=self.num_series * self.depth)
