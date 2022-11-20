@@ -11,6 +11,10 @@ def init_logger(level=logging.DEBUG):
                         datefmt='%Y%m%d:%H:%M:%S', level=level)
 
 
+def is_pow2(n: int) -> bool:
+    return (n & (n-1) == 0) and n != 0
+
+
 def highest_pow2_below(n: int) -> int:
     '''
     Inclusive

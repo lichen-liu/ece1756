@@ -1,5 +1,5 @@
 import unittest
-from ram_mapper.utils import highest_pow2_below, all_pow2_below
+from ram_mapper.utils import highest_pow2_below, all_pow2_below, is_pow2
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -27,3 +27,10 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual(all_pow2_below(15), [8, 4, 2, 1])
         self.assertEqual(all_pow2_below(16), [16, 8, 4, 2, 1])
         self.assertEqual(all_pow2_below(17), [16, 8, 4, 2, 1])
+
+    def test_is_pow2(self):
+        result_pair = [(1, True), (2, True), (3, False), (4, True), (5, False), (6, False), (7, False), (8, True),
+                       (9, False), (10, False), (11, False), (12, False), (13, False), (14, False), (15, False), (16, True)]
+
+        for n, expected_result in result_pair:
+            self.assertEqual(is_pow2(n), expected_result)
