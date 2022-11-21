@@ -65,6 +65,10 @@ class MappingConfigTestCase(unittest.TestCase):
     LW 30 LD 1 ID 1 S 1 P 2 Type 1 Mode SinglePort W 20 D 32'''
         self.assertEqual(crc.print(0), crc_expected_str)
 
+    def test_CircuitRamConfig_2level_update_extra_luts(self):
+        crc = self.generate_2level_CircuitRamConfig()
+        self.assertEqual(crc.update_extra_luts(RamMode.SinglePort), 31)
+
     def generate_3level_CircuitRamConfig(self):
         prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=1,
                                  ram_mode=RamMode.SinglePort, width=20, depth=32)
@@ -102,3 +106,8 @@ class MappingConfigTestCase(unittest.TestCase):
         LW 16 LD 8192 ID 1 S 1 P 1 Type 3 Mode SinglePort W 16 D 8192
         LW 14 LD 8192 ID 2 S 1 P 14 Type 2 Mode SinglePort W 1 D 8192'''
         self.assertEqual(crc.print(0), crc_expected_str)
+
+    def test_CircuitRamConfig_3level_update_extra_luts(self):
+        crc = self.generate_3level_CircuitRamConfig()
+        self.assertEqual(crc.update_extra_luts(RamMode.SinglePort), 31)
+        self.skipTest('Not implemented')
