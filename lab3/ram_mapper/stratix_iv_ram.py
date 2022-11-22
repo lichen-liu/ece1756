@@ -1,9 +1,9 @@
 import math
 from abc import abstractmethod
 from typing import List, Tuple
-from ram_mapper import utils
-from ram_mapper.logical_ram import RamMode
-from ram_mapper.physical_ram import RamArch, RamType, RamShape
+from . import utils
+from .logical_ram import RamMode
+from .physical_ram import RamArch, RamType, RamShape
 
 
 class SIVRamArch(RamArch):

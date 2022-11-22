@@ -3,7 +3,7 @@ from collections import OrderedDict, defaultdict
 from enum import Flag, auto
 import logging
 
-from ram_mapper.utils import make_sorted_2d_dict
+from .utils import make_sorted_2d_dict
 
 
 class RamMode(Flag):

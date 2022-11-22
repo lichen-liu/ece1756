@@ -1,10 +1,10 @@
 import unittest
-from ram_mapper.utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_2d_dict
+from .utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_2d_dict
 
 
 class UtilsTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # from ram_mapper.utils import init_logger
+        # from .utils import init_logger
         # init_logger()
         return super().setUp()
 

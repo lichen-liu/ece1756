@@ -1,10 +1,10 @@
 import unittest
-from ram_mapper.mapping_config import CircuitRamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
+from .mapping_config import CircuitRamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
 
 
 class MappingConfigTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # from ram_mapper.utils import init_logger
+        # from .utils import init_logger
         # init_logger()
         return super().setUp()
 

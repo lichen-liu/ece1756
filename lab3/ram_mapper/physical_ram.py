@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, NamedTuple, Tuple, Type, TypeVar
-from ram_mapper.logical_ram import RamMode
+from .logical_ram import RamMode
 
 
 class RamType(Enum):

@@ -1,12 +1,12 @@
 import unittest
-from ram_mapper.logical_ram import RamMode
-from ram_mapper.physical_ram import RamType, RamShape
-from ram_mapper.stratix_iv_ram import *
+from .logical_ram import RamMode
+from .physical_ram import RamType, RamShape
+from .stratix_iv_ram import *
 
 
 class StratixIVRamTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # from ram_mapper.utils import init_logger
+        # from .utils import init_logger
         # init_logger()
         return super().setUp()
 

@@ -1,10 +1,10 @@
 from collections import defaultdict
 import logging
-from ram_mapper import utils
-from ram_mapper import stratix_iv_ram
-from ram_mapper import logical_ram
-from ram_mapper import mapping_config
-from ram_mapper import test_mapping_config
+from . import utils
+from . import stratix_iv_ram
+from . import logical_ram
+from . import mapping_config
+from . import test_mapping_config
 
 
 def run():

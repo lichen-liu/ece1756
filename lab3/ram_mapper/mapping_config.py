@@ -4,10 +4,10 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Iterator, Optional
-from ram_mapper.physical_ram import RamShape
-from ram_mapper.utils import Result
-from ram_mapper.logical_ram import RamMode
-from ram_mapper.stratix_iv_ram import determine_extra_luts
+from .physical_ram import RamShape
+from .utils import Result
+from .logical_ram import RamMode
+from .stratix_iv_ram import determine_extra_luts
 
 
 class ConfigVerifier(ABC):

@@ -1,10 +1,10 @@
 import unittest
-from ram_mapper.physical_ram import RamShape
+from .physical_ram import RamShape
 
 
 class PhysicalRamTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # from ram_mapper.utils import init_logger
+        # from .utils import init_logger
         # init_logger()
         return super().setUp()
 

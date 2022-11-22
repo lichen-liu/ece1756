@@ -1,10 +1,10 @@
 import unittest
-from ram_mapper.logical_ram import LogicalRam, RamMode, parse_grouped_LogicalRam
+from .logical_ram import LogicalRam, RamMode, parse_grouped_LogicalRam
 
 
 class LogicalRamTestCase(unittest.TestCase):
     def setUp(self) -> None:
-        # from ram_mapper.utils import init_logger
+        # from .utils import init_logger
         # init_logger()
         return super().setUp()
 
