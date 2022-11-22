@@ -1,5 +1,5 @@
 import unittest
-from .mapping_config import CircuitRamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
+from .mapping_config import RamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
 
 
 class MappingConfigTestCase(unittest.TestCase):
@@ -9,38 +9,38 @@ class MappingConfigTestCase(unittest.TestCase):
         return super().setUp()
 
     @staticmethod
-    def generate_simple_CircuitRamConfig() -> CircuitRamConfig:
+    def generate_simple_RamConfig() -> RamConfig:
         prc = PhysicalRamConfig(id=0, num_series=1, num_parallel=2, ram_arch_id=1,
                                 ram_mode=RamMode.SimpleDualPort, width=10, depth=64)
         lrc = LogicalRamConfig(logical_width=12, logical_depth=45, prc=prc)
-        crc = CircuitRamConfig(circuit_id=1, ram_id=2,
+        rc = RamConfig(circuit_id=1, ram_id=2,
                                num_extra_lut=0, lrc=lrc)
-        return crc
+        return rc
 
-    def test_CircuitRamConfig_simple_verify(self):
-        crc = self.generate_simple_CircuitRamConfig()
-        self.assertTrue(crc.verify())
+    def test_RamConfig_simple_verify(self):
+        rc = self.generate_simple_RamConfig()
+        self.assertTrue(rc.verify())
 
-    def test_CircuitRamConfig_simple_serialize(self):
-        crc = self.generate_simple_CircuitRamConfig()
-        crc_expected_str = '1 2 0 LW 12 LD 45 ID 0 S 1 P 2 Type 1 Mode SimpleDualPort W 10 D 64'
-        self.assertEqual(crc.serialize(0), crc_expected_str)
+    def test_RamConfig_simple_serialize(self):
+        rc = self.generate_simple_RamConfig()
+        rc_expected_str = '1 2 0 LW 12 LD 45 ID 0 S 1 P 2 Type 1 Mode SimpleDualPort W 10 D 64'
+        self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_CircuitRamConfig_simple_update_extra_luts(self):
-        crc = self.generate_simple_CircuitRamConfig()
-        self.assertEqual(crc.update_extra_luts(RamMode.SimpleDualPort), 0)
+    def test_RamConfig_simple_update_extra_luts(self):
+        rc = self.generate_simple_RamConfig()
+        self.assertEqual(rc.update_extra_luts(RamMode.SimpleDualPort), 0)
 
-    def test_CircuitRamConfig_verify_invalid(self):
-        def generate_crc0():
+    def test_RamConfig_verify_invalid(self):
+        def generate_rc0():
             lrc = LogicalRamConfig(logical_width=12, logical_depth=45)
-            crc = CircuitRamConfig(circuit_id=1, ram_id=2,
+            rc = RamConfig(circuit_id=1, ram_id=2,
                                    num_extra_lut=0, lrc=lrc)
-            return crc
-        crc0 = generate_crc0()
-        self.assertFalse(crc0.verify())
+            return rc
+        rc0 = generate_rc0()
+        self.assertFalse(rc0.verify())
 
     @staticmethod
-    def generate_2level_CircuitRamConfig() -> CircuitRamConfig:
+    def generate_2level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=2,
                                  ram_mode=RamMode.SinglePort, width=8, depth=1024)
         lrc0 = LogicalRamConfig(logical_width=30, logical_depth=1024, prc=prc0)
@@ -52,27 +52,27 @@ class MappingConfigTestCase(unittest.TestCase):
             split=RamSplitDimension.series, lrc_l=lrc0, lrc_r=lrc1)
         lrc = LogicalRamConfig(logical_width=30, logical_depth=1025, clrc=clrc)
 
-        crc = CircuitRamConfig(circuit_id=3, ram_id=7,
+        rc = RamConfig(circuit_id=3, ram_id=7,
                                num_extra_lut=31, lrc=lrc)
-        return crc
+        return rc
 
-    def test_CircuitRamConfig_2level_verify(self):
-        crc = self.generate_2level_CircuitRamConfig()
-        self.assertTrue(crc.verify())
+    def test_RamConfig_2level_verify(self):
+        rc = self.generate_2level_RamConfig()
+        self.assertTrue(rc.verify())
 
-    def test_CircuitRamConfig_2level_serialize(self):
-        crc = self.generate_2level_CircuitRamConfig()
-        crc_expected_str = '''3 7 31 LW 30 LD 1025 series
+    def test_RamConfig_2level_serialize(self):
+        rc = self.generate_2level_RamConfig()
+        rc_expected_str = '''3 7 31 LW 30 LD 1025 series
     LW 30 LD 1024 ID 0 S 1 P 4 Type 2 Mode SinglePort W 8 D 1024
     LW 30 LD 1 ID 1 S 1 P 2 Type 1 Mode SinglePort W 20 D 32'''
-        self.assertEqual(crc.serialize(0), crc_expected_str)
+        self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_CircuitRamConfig_2level_update_extra_luts(self):
-        crc = self.generate_2level_CircuitRamConfig()
-        self.assertEqual(crc.update_extra_luts(RamMode.SinglePort), 31)
+    def test_RamConfig_2level_update_extra_luts(self):
+        rc = self.generate_2level_RamConfig()
+        self.assertEqual(rc.update_extra_luts(RamMode.SinglePort), 31)
 
     @staticmethod
-    def generate_3level_CircuitRamConfig() -> CircuitRamConfig:
+    def generate_3level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=1,
                                  ram_mode=RamMode.SinglePort, width=20, depth=32)
         lrc0 = LogicalRamConfig(logical_width=30, logical_depth=8, prc=prc0)
@@ -93,23 +93,23 @@ class MappingConfigTestCase(unittest.TestCase):
         lrc012 = LogicalRamConfig(
             logical_width=30, logical_depth=8200, clrc=clrc012)
 
-        crc = CircuitRamConfig(circuit_id=3, ram_id=8,
+        rc = RamConfig(circuit_id=3, ram_id=8,
                                num_extra_lut=31, lrc=lrc012)
-        return crc
+        return rc
 
-    def test_CircuitRamConfig_3level_verify(self):
-        crc = self.generate_3level_CircuitRamConfig()
-        self.assertTrue(crc.verify())
+    def test_RamConfig_3level_verify(self):
+        rc = self.generate_3level_RamConfig()
+        self.assertTrue(rc.verify())
 
-    def test_CircuitRamConfig_3level_serialize(self):
-        crc = self.generate_3level_CircuitRamConfig()
-        crc_expected_str = '''3 8 31 LW 30 LD 8200 series
+    def test_RamConfig_3level_serialize(self):
+        rc = self.generate_3level_RamConfig()
+        rc_expected_str = '''3 8 31 LW 30 LD 8200 series
     LW 30 LD 8 ID 0 S 1 P 4 Type 1 Mode SinglePort W 20 D 32
     LW 30 LD 8192 parallel
         LW 16 LD 8192 ID 1 S 1 P 1 Type 3 Mode SinglePort W 16 D 8192
         LW 14 LD 8192 ID 2 S 1 P 14 Type 2 Mode SinglePort W 1 D 8192'''
-        self.assertEqual(crc.serialize(0), crc_expected_str)
+        self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_CircuitRamConfig_3level_update_extra_luts(self):
-        crc = self.generate_3level_CircuitRamConfig()
-        self.assertEqual(crc.update_extra_luts(RamMode.SinglePort), 31)
+    def test_RamConfig_3level_update_extra_luts(self):
+        rc = self.generate_3level_RamConfig()
+        self.assertEqual(rc.update_extra_luts(RamMode.SinglePort), 31)

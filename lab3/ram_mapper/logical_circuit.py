@@ -49,6 +49,7 @@ def parse_LogicBlock(lines_iter: Iterator[str]) -> OrderedDict[int, int]:
 
 
 def read_LogicBlock_from_file(filename: str) -> OrderedDict[int, int]:
+    logging.info(f'Reading from {filename}')
     with open(filename, 'r') as f:
         return parse_LogicBlock(iter(f.readline, ''))
 

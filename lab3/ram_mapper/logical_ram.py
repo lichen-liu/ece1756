@@ -72,7 +72,8 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
 
     # Sort by key
     lr_by_circuitid_by_ramid = make_sorted_2d_dict(lr_by_circuitid_by_ramid)
-    logging.debug(f'  num_circuits(After grouping)={len(lr_by_circuitid_by_ramid)}')
+    logging.debug(
+        f'  num_circuits(After grouping)={len(lr_by_circuitid_by_ramid)}')
 
     assert len(
         lr_by_circuitid_by_ramid) == num_circuits, 'The actual number of circuits found must match the header'
@@ -81,5 +82,6 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
 
 
 def read_grouped_LogicalRam_from_file(filename: str) -> OrderedDict[int, OrderedDict[int, LogicalRam]]:
+    logging.info(f'Reading from {filename}')
     with open(filename, 'r') as f:
         return parse_grouped_LogicalRam(iter(f.readline, ''))

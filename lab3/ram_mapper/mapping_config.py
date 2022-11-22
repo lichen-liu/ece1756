@@ -1,11 +1,12 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Iterator, Optional
+from itertools import chain
+import logging
+from typing import Dict, Iterator, Optional
 from .physical_ram import RamShape
-from .utils import Result
+from .utils import Result, sorted_dict_items
 from .logical_ram import RamMode
 from .stratix_iv_ram import determine_extra_luts
 
@@ -28,6 +29,17 @@ class ConfigSerializer(ABC):
     def serialize(self, level: int) -> str:
         pass
 
+    def serialize_gen(self, level: int) -> Iterator[str]:
+        '''
+        By default, return an Iterator[str] of the lines-splitted self.serialize()
+        '''
+        return iter(self.serialize(level).splitlines())
+
+    def serialize_to_file(self, filename: str):
+        logging.info(f'Writing to {filename}')
+        with open(filename, 'w') as f:
+            f.writelines(self.serialize_gen(0))
+
 
 class ConfigShape(ABC):
     @abstractmethod
@@ -36,7 +48,7 @@ class ConfigShape(ABC):
 
 
 @dataclass
-class CircuitRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
+class RamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
     circuit_id: int
     ram_id: int
     num_extra_lut: int
@@ -170,15 +182,40 @@ class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
         return RamShape(width=self.num_parallel*self.width, depth=self.num_series * self.depth)
 
 
-def print_grouped_CircuitRamConfig(grouped_crc: OrderedDict[int, OrderedDict[int, CircuitRamConfig]]) -> Iterator[str]:
-    for circuit_id, circuit_mapping in grouped_crc.items():
-        for logical_ram_id, crc in circuit_mapping.items():
-            result_str = f'// Circuit={circuit_id} Ram={logical_ram_id}\n'
-            result_str += crc.serialize(level=0)
+@dataclass
+class CircuitConfig(ConfigSerializer):
+    circuit_id: int
+    rams: Dict[int, RamConfig] = field(default_factory=dict)
+
+    def serialize_gen(self, level: int) -> Iterator[str]:
+        for ram_id, crc in sorted_dict_items(self.rams):
+            result_str = f'// Circuit={self.circuit_id} Ram={ram_id}\n'
+            result_str += crc.serialize(level)
             result_str += '\n'
             yield result_str
 
+    def serialize(self, level: int) -> str:
+        return ''.join(self.serialize_gen(level))
 
-def write_grouped_CircuitRamConfig_to_file(grouped_crc: OrderedDict[int, OrderedDict[int, CircuitRamConfig]], filename: str):
-    with open(filename, mode='w')as f:
-        f.writelines(print_grouped_CircuitRamConfig(grouped_crc=grouped_crc))
+    def insert_ram_config(self, rc: RamConfig):
+        assert rc.circuit_id == self.circuit_id
+        self.rams[rc.ram_id] = rc
+
+
+@dataclass
+class AllCircuitConfig(ConfigSerializer):
+    circuits: Dict[int, CircuitConfig] = field(default_factory=dict)
+
+    def serialize_gen(self, level: int) -> Iterator[str]:
+        banner_str = ConfigSerializer.indent_str(
+            level) + f'// Num_Circuits {len(self.circuits)}\n'
+        return chain(iter([banner_str]), chain.from_iterable((cc.serialize_gen(level) for _, cc in sorted_dict_items(self.circuits))))
+
+    def serialize(self, level: int) -> str:
+        return ''.join(self.serialize_gen(level))
+
+    def insert_ram_config(self, rc: RamConfig):
+        if rc.circuit_id not in self.circuits:
+            self.circuits[rc.circuit_id] = CircuitConfig(
+                circuit_id=rc.circuit_id)
+        self.circuits[rc.circuit_id].insert_ram_config((rc))

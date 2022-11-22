@@ -1,3 +1,4 @@
+// Num_Circuits 2
 // Circuit=1 Ram=2
 1 2 0 LW 12 LD 45 ID 0 S 1 P 2 Type 1 Mode SimpleDualPort W 10 D 64
 // Circuit=3 Ram=7
