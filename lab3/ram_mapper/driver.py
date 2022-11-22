@@ -1,21 +1,28 @@
 from collections import defaultdict
 import logging
+
+from . import logical_circuit
 from . import utils
 from . import stratix_iv_ram
-from . import logical_ram
 from . import mapping_config
 from . import test_mapping_config
 
 
 def run():
-    logical_ram.read_grouped_LogicalRam_from_file('logical_rams.txt')
-
+    # Logical input
+    logic_block_count_filename = 'logic_block_count.txt'
+    logical_rams_filename = 'logical_rams.txt'
+    logical_circuit.read_LogicCircuit_from_file(
+        logicblock_filename=logic_block_count_filename, loigicalram_filename=logical_rams_filename)
+   
+    # Arch input
     ramarchs = stratix_iv_ram.create_all_from_str(
         '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
     logging.info('RAM Archs:')
     for ramarch in ramarchs:
         logging.info(ramarch)
-
+    
+    # Mapping output
     crc_by_circuitid_by_ramid = defaultdict(
         lambda: defaultdict(mapping_config.CircuitRamConfig))
     crc_list = [

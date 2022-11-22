@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import OrderedDict
 import logging
 import math
-from typing import Dict, List, NamedTuple, Optional, Type, TypeVar
+from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple, Type, TypeVar
 
 
 def init_logger(level=logging.DEBUG):
@@ -47,6 +47,10 @@ def make_sorted_1d_dict(dict_1d: Dict[int, T]) -> OrderedDict[int, T]:
 
 def make_sorted_2d_dict(dict_2d: Dict[int, Dict[int, T]]) -> OrderedDict[int, OrderedDict[int, T]]:
     return make_sorted_1d_dict({id_2d: make_sorted_1d_dict(dict_1d) for id_2d, dict_1d in dict_2d.items()})
+
+
+def sorted_dict_items(d: Dict[int, T]) -> Iterator[Tuple[int, T]]:
+    return sorted(d.items())
 
 
 class Result(NamedTuple):
