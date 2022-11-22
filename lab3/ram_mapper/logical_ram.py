@@ -3,6 +3,8 @@ from collections import OrderedDict, defaultdict
 from enum import Flag, auto
 import logging
 
+from ram_mapper.utils import make_sorted_2d_dict
+
 
 class RamMode(Flag):
     ROM = auto()  # R
@@ -43,7 +45,7 @@ class LogicalRam(NamedTuple):
             raise
 
 
-def parse_grouped_LogicalRam(lines_iter: Iterator) -> OrderedDict[OrderedDict[LogicalRam]]:
+def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, OrderedDict[int, LogicalRam]]:
     # line 0: Num_Circuits 69
     first_line = next(lines_iter).strip()
     _, num_circuits_str = first_line.split()
@@ -64,10 +66,7 @@ def parse_grouped_LogicalRam(lines_iter: Iterator) -> OrderedDict[OrderedDict[Lo
         lr_by_circuitid_by_ramid[lr.circuit_id][lr.ram_id] = lr
 
     # Sort by key
-    def sorted_dict_by_key(d):
-        return OrderedDict(sorted(d.items()))
-    lr_by_circuitid_by_ramid = sorted_dict_by_key(
-        {id: sorted_dict_by_key(lr_by_ramid) for id, lr_by_ramid in lr_by_circuitid_by_ramid.items()})
+    lr_by_circuitid_by_ramid = make_sorted_2d_dict(lr_by_circuitid_by_ramid)
     logging.debug('After grouping:')
     logging.debug(f'  num_circuits={len(lr_by_circuitid_by_ramid)}')
 

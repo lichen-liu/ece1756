@@ -1,8 +1,9 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
+from typing import Iterator, Optional
 from ram_mapper.physical_ram import RamShape
 from ram_mapper.utils import Result
 from ram_mapper.logical_ram import RamMode
@@ -15,7 +16,7 @@ class ConfigVerifier(ABC):
         pass
 
 
-class ConfigPrinter(ABC):
+class ConfigSerializer(ABC):
     @staticmethod
     def indent_str(level: int) -> str:
         '''
@@ -24,7 +25,7 @@ class ConfigPrinter(ABC):
         return level * 4 * ' '
 
     @abstractmethod
-    def print(self, level: int) -> str:
+    def serialize(self, level: int) -> str:
         pass
 
 
@@ -35,7 +36,7 @@ class ConfigShape(ABC):
 
 
 @dataclass
-class CircuitRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
+class CircuitRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
     circuit_id: int
     ram_id: int
     num_extra_lut: int
@@ -44,8 +45,8 @@ class CircuitRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     def verify(self) -> Result:
         return self.lrc.verify()
 
-    def print(self, level: int) -> str:
-        return f'{self.circuit_id} {self.ram_id} {self.num_extra_lut} {self.lrc.print(level)}'
+    def serialize(self, level: int) -> str:
+        return f'{self.circuit_id} {self.ram_id} {self.num_extra_lut} {self.lrc.serialize(level)}'
 
     def get_shape(self) -> RamShape:
         return self.lrc.get_shape()
@@ -59,7 +60,7 @@ class CircuitRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
 
 
 @dataclass
-class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
+class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
     logical_width: int
     logical_depth: int
     clrc: Optional[CombinedLogicalRamConfig] = None
@@ -82,10 +83,10 @@ class LogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
             return Result.expect(prc_shape.width >= self_shape.width and prc_shape.depth >= self_shape.depth,
                                  'Requires the actual physical shape from PhysicalRamConfig to be not less than (both width and depth) the expected logical shape')
 
-    def print(self, level: int) -> str:
+    def serialize(self, level: int) -> str:
         self_str = f'LW {self.logical_width} LD {self.logical_depth}'
-        child_str = self.prc.print(
-            level) if self.prc is not None else self.clrc.print(level)
+        child_str = self.prc.serialize(
+            level) if self.prc is not None else self.clrc.serialize(level)
         return self_str + ' ' + child_str
 
     def get_shape(self) -> RamShape:
@@ -113,7 +114,7 @@ class RamSplitDimension(Enum):
 
 
 @dataclass
-class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
+class CombinedLogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
     split: RamSplitDimension
     lrc_l: LogicalRamConfig
     lrc_r: LogicalRamConfig
@@ -131,11 +132,13 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
         else:
             return Result.expect(lrc_l_shape.depth == lrc_r_shape.depth, 'Requires depth to match in parallel mode')
 
-    def print(self, level: int) -> str:
+    def serialize(self, level: int) -> str:
         self_str = f'{self.split.name}'
         level += 1
-        lrc_l_str = ConfigPrinter.indent_str(level) + self.lrc_l.print(level)
-        lrc_r_str = ConfigPrinter.indent_str(level) + self.lrc_r.print(level)
+        lrc_l_str = ConfigSerializer.indent_str(
+            level) + self.lrc_l.serialize(level)
+        lrc_r_str = ConfigSerializer.indent_str(
+            level) + self.lrc_r.serialize(level)
         return f'{self_str}\n{lrc_l_str}\n{lrc_r_str}'
 
     def get_shape(self) -> RamShape:
@@ -148,7 +151,7 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
 
 
 @dataclass
-class PhysicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
+class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape):
     id: int
     num_series: int
     num_parallel: int
@@ -160,8 +163,22 @@ class PhysicalRamConfig(ConfigVerifier, ConfigPrinter, ConfigShape):
     def verify(self) -> Result:
         return Result.good()
 
-    def print(self, level: int) -> str:
+    def serialize(self, level: int) -> str:
         return f'ID {self.id} S {self.num_series} P {self.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.width} D {self.depth}'
 
     def get_shape(self) -> RamShape:
         return RamShape(width=self.num_parallel*self.width, depth=self.num_series * self.depth)
+
+
+def print_grouped_CircuitRamConfig(grouped_crc: OrderedDict[int, OrderedDict[int, CircuitRamConfig]]) -> Iterator[str]:
+    for circuit_id, circuit_mapping in grouped_crc.items():
+        for logical_ram_id, crc in circuit_mapping.items():
+            result_str = f'// Circuit={circuit_id} Ram={logical_ram_id}\n'
+            result_str += crc.serialize(level=0)
+            result_str += '\n'
+            yield result_str
+
+
+def write_grouped_CircuitRamConfig_to_file(grouped_crc: OrderedDict[int, OrderedDict[int, CircuitRamConfig]], filename: str):
+    with open(filename, mode='w')as f:
+        f.writelines(print_grouped_CircuitRamConfig(grouped_crc=grouped_crc))

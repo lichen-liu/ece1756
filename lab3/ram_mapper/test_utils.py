@@ -1,5 +1,5 @@
 import unittest
-from ram_mapper.utils import highest_pow2_below, all_pow2_below, is_pow2
+from ram_mapper.utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_2d_dict
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -34,3 +34,12 @@ class UtilsTestCase(unittest.TestCase):
 
         for n, expected_result in expected_pair:
             self.assertEqual(is_pow2(n), expected_result)
+
+    def test_make_sorted_2d_dict(self):
+        raw_dict = {3: {2: 'a', 0: 'b'}, 2: {
+            9: 'c', 5: 'd'}, 0: {1: 'e', 6: 'f'}}
+        sorted_dict = make_sorted_2d_dict(raw_dict)
+        self.assertListEqual(list(sorted_dict.keys()), [0, 2, 3])
+        self.assertListEqual(list(sorted_dict[0].keys()), [1, 6])
+        self.assertListEqual(list(sorted_dict[2].keys()), [5, 9])
+        self.assertListEqual(list(sorted_dict[3].keys()), [0, 2])

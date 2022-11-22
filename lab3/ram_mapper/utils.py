@@ -1,7 +1,8 @@
 from __future__ import annotations
+from collections import OrderedDict
 import logging
 import math
-from typing import List, NamedTuple, Optional, Type
+from typing import Dict, List, NamedTuple, Optional, Type, TypeVar
 
 
 def init_logger(level=logging.DEBUG):
@@ -35,6 +36,15 @@ def all_pow2_below(x: int) -> List[int]:
                 return all_pow2_below_helper(a - 1, l)
         return l
     return all_pow2_below_helper(x, [])
+
+
+T = TypeVar("T")
+
+
+def make_sorted_2d_dict(dict_2d: Dict[int, Dict[int, T]]) -> OrderedDict[int, OrderedDict[int, T]]:
+    def sorted_dict_by_key(d):
+        return OrderedDict(sorted(d.items()))
+    return sorted_dict_by_key({id_2d: sorted_dict_by_key(dict_1d) for id_2d, dict_1d in dict_2d.items()})
 
 
 class Result(NamedTuple):
