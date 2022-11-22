@@ -33,7 +33,8 @@ class LogicalRamTestCase(unittest.TestCase):
             LogicalRam(circuit_id=6, ram_id=20, mode=RamMode.SinglePort, depth=2048, width=32))
 
     def test_parse_grouped_LogicalRam_ordered_indices(self):
-        input_str = '''Num_Circuits 3
+        input_str = '''
+        Num_Circuits 3
         Circuit	RamID	Mode		Depth	Width
         6	0	SimpleDualPort	45	12
         5	33	ROM           	256	8

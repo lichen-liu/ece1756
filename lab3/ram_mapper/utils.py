@@ -41,10 +41,12 @@ def all_pow2_below(x: int) -> List[int]:
 T = TypeVar("T")
 
 
+def make_sorted_1d_dict(dict_1d: Dict[int, T]) -> OrderedDict[int, T]:
+    return OrderedDict(sorted(dict_1d.items()))
+
+
 def make_sorted_2d_dict(dict_2d: Dict[int, Dict[int, T]]) -> OrderedDict[int, OrderedDict[int, T]]:
-    def sorted_dict_by_key(d):
-        return OrderedDict(sorted(d.items()))
-    return sorted_dict_by_key({id_2d: sorted_dict_by_key(dict_1d) for id_2d, dict_1d in dict_2d.items()})
+    return make_sorted_1d_dict({id_2d: make_sorted_1d_dict(dict_1d) for id_2d, dict_1d in dict_2d.items()})
 
 
 class Result(NamedTuple):

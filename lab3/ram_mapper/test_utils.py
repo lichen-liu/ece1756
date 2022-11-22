@@ -1,5 +1,5 @@
 import unittest
-from .utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_2d_dict
+from .utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_1d_dict, make_sorted_2d_dict
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -43,3 +43,8 @@ class UtilsTestCase(unittest.TestCase):
         self.assertListEqual(list(sorted_dict[0].keys()), [1, 6])
         self.assertListEqual(list(sorted_dict[2].keys()), [5, 9])
         self.assertListEqual(list(sorted_dict[3].keys()), [0, 2])
+
+    def test_make_sorted_1d_dict(self):
+        raw_dict = {6: 'a', 7: 'b', 3: 'c', 1: 'd', 5: 'e', 2: 'f', 0: 'g'}
+        sorted_dict = make_sorted_1d_dict(raw_dict)
+        self.assertListEqual(list(sorted_dict.keys()), [0, 1, 2, 3, 5, 6, 7])

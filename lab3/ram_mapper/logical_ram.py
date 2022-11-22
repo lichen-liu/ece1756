@@ -47,7 +47,12 @@ class LogicalRam(NamedTuple):
 
 def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, OrderedDict[int, LogicalRam]]:
     # line 0: Num_Circuits 69
-    first_line = next(lines_iter).strip()
+    first_line = None
+    while True:
+        first_line = next(lines_iter).strip()
+        if first_line != '':
+            break
+    assert first_line is not None
     _, num_circuits_str = first_line.split()
     num_circuits = int(num_circuits_str)
     # line 1: Circuit	RamID	Mode		Depth	Width
@@ -76,6 +81,6 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
     return lr_by_circuitid_by_ramid
 
 
-def read_grouped_LogicalRam_from_file(filename: str) -> OrderedDict[OrderedDict[LogicalRam]]:
+def read_grouped_LogicalRam_from_file(filename: str) -> OrderedDict[int, OrderedDict[int, LogicalRam]]:
     with open(filename, 'r') as f:
         return parse_grouped_LogicalRam(iter(f.readline, ''))
