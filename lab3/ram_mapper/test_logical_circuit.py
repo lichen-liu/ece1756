@@ -1,6 +1,6 @@
 import unittest
 
-from .logical_ram import LogicalRam, RamMode, parse_grouped_LogicalRam
+from .logical_ram import LogicalRam, RamMode, RamShape, parse_grouped_LogicalRam
 from .logical_circuit import LogicalCircuit, merge_grouped_LogicalCircuit, parse_LogicBlock
 
 
@@ -41,13 +41,13 @@ class LogicalCircuitTestCase(unittest.TestCase):
 
     def test_merge_grouped_LogicalCircuit(self):
         lc0 = LogicalCircuit(circuit_id=0, num_logic_blocks=2941, rams={
-            0: LogicalRam(circuit_id=0, ram_id=0, mode=RamMode.SimpleDualPort, depth=45, width=12),
-            1: LogicalRam(circuit_id=0, ram_id=1, mode=RamMode.ROM, depth=45, width=12),
-            2: LogicalRam(circuit_id=0, ram_id=2, mode=RamMode.SinglePort, depth=72, width=21)})
+            0: LogicalRam(circuit_id=0, ram_id=0, mode=RamMode.SimpleDualPort, shape=RamShape(depth=45, width=12)),
+            1: LogicalRam(circuit_id=0, ram_id=1, mode=RamMode.ROM, shape=RamShape(depth=45, width=12)),
+            2: LogicalRam(circuit_id=0, ram_id=2, mode=RamMode.SinglePort, shape=RamShape(depth=72, width=21))})
         lc1 = LogicalCircuit(circuit_id=1, num_logic_blocks=2906, rams={
-            0: LogicalRam(circuit_id=1, ram_id=0, mode=RamMode.SimpleDualPort, depth=32, width=18)})
+            0: LogicalRam(circuit_id=1, ram_id=0, mode=RamMode.SimpleDualPort, shape=RamShape(depth=32, width=18))})
         lc2 = LogicalCircuit(circuit_id=2, num_logic_blocks=1836, rams={
-            0: LogicalRam(circuit_id=2, ram_id=0, mode=RamMode.SimpleDualPort, depth=64, width=36)})
+            0: LogicalRam(circuit_id=2, ram_id=0, mode=RamMode.SimpleDualPort, shape=RamShape(depth=64, width=36))})
         expected_lcs = {0: lc0, 1: lc1, 2: lc2}
         actual_lcs = self.generate_simple_LogicalCircuit()
         self.assertDictEqual(actual_lcs, expected_lcs)

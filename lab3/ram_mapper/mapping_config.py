@@ -86,8 +86,7 @@ class RamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRam
 
 @dataclass
 class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
-    logical_width: int
-    logical_depth: int
+    logical_shape: RamShape
     clrc: Optional[CombinedLogicalRamConfig] = None
     prc: Optional[PhysicalRamConfig] = None
 
@@ -109,18 +108,18 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
                                  'Requires the actual physical shape from PhysicalRamConfig to be not less than (both width and depth) the expected logical shape')
 
     def serialize(self, level: int) -> str:
-        self_str = f'LW {self.logical_width} LD {self.logical_depth}'
+        self_str = f'LW {self.logical_shape.width} LD {self.logical_shape.depth}'
         child_str = self.prc.serialize(
             level) if self.prc is not None else self.clrc.serialize(level)
         return self_str + ' ' + child_str
 
     def get_shape(self) -> RamShape:
-        return RamShape(width=self.logical_width, depth=self.logical_depth)
+        return self.logical_shape
 
     def get_extra_luts(self, usage_mode: RamMode) -> int:
         if self.prc is not None:
             return determine_extra_luts(num_series=self.prc.num_series,
-                                        logical_w=self.logical_width, ram_mode=usage_mode)
+                                        logical_w=self.logical_shape.width, ram_mode=usage_mode)
         else:
             lrc_l_extra_luts = self.clrc.lrc_l.get_extra_luts(
                 usage_mode=usage_mode)
@@ -129,7 +128,7 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
             clrc_extra_luts = 0
             if self.clrc.split == RamSplitDimension.series:
                 clrc_extra_luts = determine_extra_luts(
-                    num_series=2, logical_w=self.logical_width, ram_mode=usage_mode)
+                    num_series=2, logical_w=self.logical_shape.width, ram_mode=usage_mode)
             return lrc_l_extra_luts + lrc_r_extra_luts + clrc_extra_luts
 
     def get_physical_ram_count(self) -> Counter[int]:
@@ -191,17 +190,16 @@ class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhy
     num_parallel: int
     ram_arch_id: int
     ram_mode: RamMode
-    width: int
-    depth: int
+    physical_shape: RamShape
 
     def verify(self) -> Result:
         return Result.good()
 
     def serialize(self, level: int) -> str:
-        return f'ID {self.id} S {self.num_series} P {self.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.width} D {self.depth}'
+        return f'ID {self.id} S {self.num_series} P {self.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.physical_shape.width} D {self.physical_shape.depth}'
 
     def get_shape(self) -> RamShape:
-        return RamShape(width=self.num_parallel*self.width, depth=self.num_series * self.depth)
+        return RamShape(width=self.num_parallel*self.physical_shape.width, depth=self.num_series * self.physical_shape.depth)
 
     def get_physical_ram_count(self) -> Counter[int]:
         return Counter({self.ram_arch_id: self.num_parallel*self.num_series})

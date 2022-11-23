@@ -1,5 +1,5 @@
 import unittest
-from .logical_ram import LogicalRam, RamMode, parse_grouped_LogicalRam
+from .logical_ram import LogicalRam, RamMode, RamShape, parse_grouped_LogicalRam
 
 
 class LogicalRamTestCase(unittest.TestCase):
@@ -16,16 +16,16 @@ class LogicalRamTestCase(unittest.TestCase):
     def test_LogicalRam_from_str(self):
         self.assertEqual(
             LogicalRam.from_str('0	0	SimpleDualPort	45	12'),
-            LogicalRam(circuit_id=0, ram_id=0, mode=RamMode.SimpleDualPort, depth=45, width=12))
+            LogicalRam(circuit_id=0, ram_id=0, mode=RamMode.SimpleDualPort, shape=RamShape(depth=45, width=12)))
         self.assertEqual(
             LogicalRam.from_str('0	33	ROM           	256	8'),
-            LogicalRam(circuit_id=0, ram_id=33, mode=RamMode.ROM, depth=256, width=8))
+            LogicalRam(circuit_id=0, ram_id=33, mode=RamMode.ROM, shape=RamShape(depth=256, width=8)))
         self.assertEqual(
             LogicalRam.from_str('5	99	TrueDualPort  	512	39'),
-            LogicalRam(circuit_id=5, ram_id=99, mode=RamMode.TrueDualPort, depth=512, width=39))
+            LogicalRam(circuit_id=5, ram_id=99, mode=RamMode.TrueDualPort, shape=RamShape(depth=512, width=39)))
         self.assertEqual(
             LogicalRam.from_str('6	20	SinglePort    	2048	32'),
-            LogicalRam(circuit_id=6, ram_id=20, mode=RamMode.SinglePort, depth=2048, width=32))
+            LogicalRam(circuit_id=6, ram_id=20, mode=RamMode.SinglePort, shape=RamShape(depth=2048, width=32)))
 
     def test_parse_grouped_LogicalRam_ordered_indices(self):
         input_str = '''

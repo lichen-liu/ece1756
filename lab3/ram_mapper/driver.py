@@ -6,7 +6,6 @@ from . import siv_heuristics
 from . import transform
 from . import logical_circuit
 from . import siv_arch
-from . import mapping_config
 
 
 def init(parser):
@@ -47,7 +46,7 @@ def run(args):
 
     # Mapping output
     acc = transform.solve_all_circuits(
-        ram_archs=ram_arch, logical_circuits=lcs)
+        ram_archs=ram_archs, logical_circuits=lcs)
     assert len(acc.circuits) == len(
         lcs), 'Final mapping result must contain same number of circuits as logical_ram input'
     acc.serialize_to_file(mapping_filename)

@@ -1,5 +1,7 @@
 from collections import Counter
 import unittest
+
+from .logical_ram import RamShape
 from .mapping_config import CircuitConfig, RamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
 
 
@@ -7,8 +9,9 @@ class MappingConfigTestCase(unittest.TestCase):
     @staticmethod
     def generate_1level_RamConfig() -> RamConfig:
         prc = PhysicalRamConfig(id=0, num_series=1, num_parallel=2, ram_arch_id=1,
-                                ram_mode=RamMode.SimpleDualPort, width=10, depth=64)
-        lrc = LogicalRamConfig(logical_width=12, logical_depth=45, prc=prc)
+                                ram_mode=RamMode.SimpleDualPort, physical_shape=RamShape(width=10, depth=64))
+        lrc = LogicalRamConfig(
+            logical_shape=RamShape(width=12, depth=45), prc=prc)
         rc = RamConfig(circuit_id=1, ram_id=2,
                        num_extra_lut=0, lrc=lrc)
         return rc
@@ -32,7 +35,7 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_verify_invalid(self):
         def generate_rc0():
-            lrc = LogicalRamConfig(logical_width=12, logical_depth=45)
+            lrc = LogicalRamConfig(logical_shape=RamShape(width=12, depth=45))
             rc = RamConfig(circuit_id=1, ram_id=2,
                            num_extra_lut=0, lrc=lrc)
             return rc
@@ -42,15 +45,18 @@ class MappingConfigTestCase(unittest.TestCase):
     @staticmethod
     def generate_2level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=2,
-                                 ram_mode=RamMode.SinglePort, width=8, depth=1024)
-        lrc0 = LogicalRamConfig(logical_width=30, logical_depth=1024, prc=prc0)
+                                 ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=8, depth=1024))
+        lrc0 = LogicalRamConfig(logical_shape=RamShape(
+            width=30, depth=1024), prc=prc0)
         prc1 = PhysicalRamConfig(id=1, num_series=1, num_parallel=2, ram_arch_id=1,
-                                 ram_mode=RamMode.SinglePort, width=20, depth=32)
-        lrc1 = LogicalRamConfig(logical_width=30, logical_depth=1, prc=prc1)
+                                 ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=20, depth=32))
+        lrc1 = LogicalRamConfig(
+            logical_shape=RamShape(width=30, depth=1), prc=prc1)
 
         clrc = CombinedLogicalRamConfig(
             split=RamSplitDimension.series, lrc_l=lrc0, lrc_r=lrc1)
-        lrc = LogicalRamConfig(logical_width=30, logical_depth=1025, clrc=clrc)
+        lrc = LogicalRamConfig(logical_shape=RamShape(
+            width=30, depth=1025), clrc=clrc)
 
         rc = RamConfig(circuit_id=3, ram_id=7,
                        num_extra_lut=31, lrc=lrc)
@@ -79,24 +85,27 @@ class MappingConfigTestCase(unittest.TestCase):
     @staticmethod
     def generate_3level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=1,
-                                 ram_mode=RamMode.SinglePort, width=20, depth=32)
-        lrc0 = LogicalRamConfig(logical_width=30, logical_depth=8, prc=prc0)
+                                 ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=20, depth=32))
+        lrc0 = LogicalRamConfig(
+            logical_shape=RamShape(width=30, depth=8), prc=prc0)
 
         prc1 = PhysicalRamConfig(id=1, num_series=1, num_parallel=1, ram_arch_id=3,
-                                 ram_mode=RamMode.SinglePort, width=16, depth=8192)
-        lrc1 = LogicalRamConfig(logical_width=16, logical_depth=8192, prc=prc1)
+                                 ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=16, depth=8192))
+        lrc1 = LogicalRamConfig(logical_shape=RamShape(
+            width=16, depth=8192), prc=prc1)
         prc2 = PhysicalRamConfig(id=2, num_series=1, num_parallel=14, ram_arch_id=2,
-                                 ram_mode=RamMode.SinglePort, width=1, depth=8192)
-        lrc2 = LogicalRamConfig(logical_width=14, logical_depth=8192, prc=prc2)
+                                 ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=1, depth=8192))
+        lrc2 = LogicalRamConfig(logical_shape=RamShape(
+            width=14, depth=8192), prc=prc2)
         clrc12 = CombinedLogicalRamConfig(
             split=RamSplitDimension.parallel, lrc_l=lrc1, lrc_r=lrc2)
         lrc12 = LogicalRamConfig(
-            logical_width=30, logical_depth=8192, clrc=clrc12)
+            logical_shape=RamShape(width=30, depth=8192), clrc=clrc12)
 
         clrc012 = CombinedLogicalRamConfig(
             split=RamSplitDimension.series, lrc_l=lrc0, lrc_r=lrc12)
         lrc012 = LogicalRamConfig(
-            logical_width=30, logical_depth=8200, clrc=clrc012)
+            logical_shape=RamShape(width=30, depth=8200), clrc=clrc012)
 
         rc = RamConfig(circuit_id=3, ram_id=8,
                        num_extra_lut=31, lrc=lrc012)

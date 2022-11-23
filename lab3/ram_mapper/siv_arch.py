@@ -2,8 +2,8 @@ import math
 from abc import abstractmethod
 from typing import Dict, List, Tuple
 from . import utils
-from .logical_ram import RamMode
-from .physical_arch import ArchProperty, RamArch, RamType, RamShape
+from .logical_ram import RamMode, RamShape
+from .physical_arch import ArchProperty, RamArch, RamType
 
 
 class SIVRamArch(RamArch):

@@ -1,38 +1,12 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, NamedTuple, Tuple, Type, TypeVar
-from .logical_ram import RamMode
+from typing import List, Tuple
+from .logical_ram import RamMode, RamShape
 
 
 class RamType(Enum):
     LUTRAM = 'l'
     BLOCK_RAM = 'b'
-
-
-# Create a generic variable that can be 'LogicalRam', or any subclass.
-RamShapeT = TypeVar('RamShapeT', bound='RamShape')
-
-
-class RamShape(NamedTuple):
-    width: int
-    depth: int
-
-    def get_size(self) -> int:
-        return self.width * self.depth
-
-    @classmethod
-    def from_size(cls: Type[RamShapeT], size: int, width: int) -> RamShapeT:
-        assert size % width == 0
-        return cls(width=int(width), depth=int(size/width))
-
-    def __str__(self):
-        return f'W{self.width}xD{self.depth}={self.get_size()}'
-
-    def as_tuple(self) -> Tuple[int, int, int]:
-        '''
-        For comparison, using lexical order: (size, width, depth)
-        '''
-        return (self.get_size(), self.width, self.depth)
 
 
 class ArchProperty(ABC):
