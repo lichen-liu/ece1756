@@ -95,6 +95,22 @@ def create_all_from_str(raw_checker_str: str) -> List[SIVRamArch]:
     return create_all_from_strs(list(filter(len, raw_checker_str.split('-'))))
 
 
+def generate_default_lutram() -> LUTRamArch:
+    return create_from_str(0, '-l 1 1')
+
+
+def generate_default_8k_bram() -> BlockRamArch:
+    return create_from_str(1, '-b 8192 32 10 1')
+
+
+def generate_default_128k_bram() -> BlockRamArch:
+    return create_from_str(2, '-b 131072 128 300 1')
+
+
+def generate_default_arch() -> List[SIVRamArch]:
+    return create_all_from_str(
+        '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
+
 # When physical RAMs are combined in parallel to create a wider word, no extra logic is needed.
 # When physical RAMs are combined to implement a deeper RAM, extra logic is needed. If we combine R physical RAMs to make a logical RAM that is R times deeper than the maximum depth of the physical RAM, we will need to include extra logic to:
 # 1. Decode which RAM we must activate on a write.

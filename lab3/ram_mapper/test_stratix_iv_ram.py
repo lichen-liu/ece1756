@@ -86,32 +86,15 @@ class StratixIVRamTestCase(unittest.TestCase):
         self.assertEqual(determine_extra_luts(
             num_series=8, logical_w=30, ram_mode=RamMode.TrueDualPort), 2*(3*30 + 8))
 
-    @staticmethod
-    def generate_default_lutram() -> LUTRamArch:
-        return create_from_str(0, '-l 1 1')
-
-    @staticmethod
-    def generate_default_8k_bram() -> BlockRamArch:
-        return create_from_str(1, '-b 8192 32 10 1')
-
-    @staticmethod
-    def generate_default_128k_bram() -> BlockRamArch:
-        return create_from_str(2, '-b 131072 128 300 1')
-
-    @staticmethod
-    def generate_default_arch() -> List[SIVRamArch]:
-        return create_all_from_str(
-            '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
-
     def test_generate_default_arch(self):
-        self.assertListEqual(self.generate_default_arch(), [self.generate_default_lutram(
-        ), self.generate_default_8k_bram(), self.generate_default_128k_bram()])
+        self.assertListEqual(generate_default_arch(), [generate_default_lutram(
+        ), generate_default_8k_bram(), generate_default_128k_bram()])
 
     def test_default_lutram_area(self):
-        self.assertEqual(self.generate_default_lutram().get_area(), 40000)
+        self.assertEqual(generate_default_lutram().get_area(), 40000)
 
     def test_default_8k_bram_area(self):
-        self.assertEqual(self.generate_default_8k_bram().get_area(), 96506)
+        self.assertEqual(generate_default_8k_bram().get_area(), 96506)
 
     def test_default_128k_bram_area(self):
-        self.assertEqual(self.generate_default_128k_bram().get_area(), 850543)
+        self.assertEqual(generate_default_128k_bram().get_area(), 850543)
