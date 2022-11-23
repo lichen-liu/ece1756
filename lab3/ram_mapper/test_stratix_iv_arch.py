@@ -4,12 +4,7 @@ from .physical_ram import RamType, RamShape
 from .stratix_iv_arch import *
 
 
-class StratixIVRamTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        # from .utils import init_logger
-        # init_logger()
-        return super().setUp()
-
+class StratixIVArchTestCase(unittest.TestCase):
     def test_BlockRamArch(self):
         ram = BlockRamArch(0, RamShape.from_size(256, 16), (10, 1))
         self.assertEqual(ram.get_id(), 0)

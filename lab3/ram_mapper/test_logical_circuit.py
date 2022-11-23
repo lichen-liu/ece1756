@@ -5,11 +5,6 @@ from .logical_circuit import LogicalCircuit, merge_grouped_LogicalCircuit, parse
 
 
 class LogicalCircuitTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        # from .utils import init_logger
-        # init_logger()
-        return super().setUp()
-
     def test_parse_LogicBlock(self):
         input_str = '''
         Circuit	"# Logic blocks (N=10, k=6, fracturable)"

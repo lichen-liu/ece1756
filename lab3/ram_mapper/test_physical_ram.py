@@ -3,11 +3,6 @@ from .physical_ram import RamShape
 
 
 class PhysicalRamTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        # from .utils import init_logger
-        # init_logger()
-        return super().setUp()
-
     def test_RamShape_from_size(self):
         self.assertEqual(RamShape.from_size(512, 32), RamShape(32, 16))
         self.assertEqual(RamShape.from_size(8192, 32), RamShape(32, 256))

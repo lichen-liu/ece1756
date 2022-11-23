@@ -3,11 +3,6 @@ from .logical_ram import LogicalRam, RamMode, parse_grouped_LogicalRam
 
 
 class LogicalRamTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        # from .utils import init_logger
-        # init_logger()
-        return super().setUp()
-
     def test_RamMode_in(self):
         mode0 = RamMode.SimpleDualPort | RamMode.ROM
         self.assertNotIn(mode0, RamMode)

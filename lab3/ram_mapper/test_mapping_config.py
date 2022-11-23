@@ -4,11 +4,6 @@ from .mapping_config import CircuitConfig, RamConfig, LogicalRamConfig, Physical
 
 
 class MappingConfigTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        # from .utils import init_logger
-        # init_logger()
-        return super().setUp()
-
     @staticmethod
     def generate_1level_RamConfig() -> RamConfig:
         prc = PhysicalRamConfig(id=0, num_series=1, num_parallel=2, ram_arch_id=1,
