@@ -73,6 +73,10 @@ class RamArchProperty(ABC):
     def __eq__(self, other):
         return type(self) == type(other) and self.__dict__ == other.__dict__
 
+    @abstractmethod
+    def get_area(self) -> int:
+        pass
+
 
 class RamArch(RamArchProperty):
     '''

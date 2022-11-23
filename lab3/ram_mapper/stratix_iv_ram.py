@@ -41,6 +41,11 @@ class BlockRamArch(SIVRamArch):
     def get_ratio_of_LB(self) -> Tuple[int, int]:
         return self._ratio_of_LB
 
+    def get_area(self) -> int:
+        bits = self.get_size()
+        max_width = self.get_max_width().width
+        return int(round(9000 + 5*bits + 90 * math.sqrt(bits) + 600*2*max_width))
+
 
 class LUTRamArch(SIVRamArch):
     def __init__(self, id: int, ratio_of_LB: Tuple[int, int]):
@@ -62,6 +67,9 @@ class LUTRamArch(SIVRamArch):
 
     def get_ratio_of_LB(self) -> Tuple[int, int]:
         return self._ratio_of_LB
+
+    def get_area(self) -> int:
+        return 40000
 
 
 def create_from_str(id: int, checker_str: str) -> SIVRamArch:

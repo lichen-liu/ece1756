@@ -3,7 +3,7 @@ import logging
 
 from . import logical_circuit
 from . import utils
-from . import stratix_iv_ram
+from . import test_stratix_iv_ram
 from . import mapping_config
 from . import test_mapping_config
 
@@ -16,8 +16,7 @@ def run():
         logicblock_filename=logic_block_count_filename, loigicalram_filename=logical_rams_filename)
 
     # Arch input
-    ramarchs = stratix_iv_ram.create_all_from_str(
-        '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
+    ramarchs = test_stratix_iv_ram.StratixIVRamTestCase.generate_default_arch()
     logging.info('RAM Archs:')
     for ramarch in ramarchs:
         logging.info(ramarch)
