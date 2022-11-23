@@ -9,7 +9,7 @@ from typing import Dict, Iterator, Optional
 from .physical_arch import RamShape
 from .utils import Result, sorted_dict_items
 from .logical_ram import RamMode
-from .stratix_iv_arch import determine_extra_luts
+from .siv_arch import determine_extra_luts
 
 
 class ConfigVerifier(ABC):

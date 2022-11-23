@@ -5,13 +5,16 @@ from typing import Dict, Iterator, NamedTuple, Tuple
 
 from .utils import make_sorted_1d_dict
 
-from .logical_ram import LogicalRam, read_grouped_LogicalRam_from_file
+from .logical_ram import LogicalRam, RamMode, read_grouped_LogicalRam_from_file
 
 
 class LogicalCircuit(NamedTuple):
     circuit_id: int
     rams: Dict[int, LogicalRam]
     num_logic_blocks: int
+
+    def get_ram_modes(self) -> Dict[int, RamMode]:
+        return dict(map(lambda kv: (kv[0], kv[1].mode), self.rams.items()))
 
 
 def parse_LogicBlock(lines_iter: Iterator[str]) -> OrderedDict[int, int]:

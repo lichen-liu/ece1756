@@ -1,16 +1,20 @@
 from collections import Counter
 import logging
-from typing import List
+from typing import Dict, List
 import math
+
+from .mapping_config import CircuitConfig
+
+from .logical_circuit import LogicalCircuit
 
 from .physical_arch import RamType
 
 from .utils import sorted_dict_items
 
-from .stratix_iv_arch import RegularLogicBlockArch, SIVRamArch
+from .siv_arch import RegularLogicBlockArch, SIVRamArch
 
 
-def calculate_fpga_area(ram_arch: List[SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], verbose: bool = False) -> int:
+def calculate_fpga_area(ram_arch: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], verbose: bool = False) -> int:
     lb_arch = RegularLogicBlockArch()
 
     # Convert extra_lut_count + logic_block_count into regular_lb_used
@@ -20,7 +24,7 @@ def calculate_fpga_area(ram_arch: List[SIVRamArch], logic_block_count: int, extr
     regular_lb_used = logic_block_count+lb_for_extra_lut
 
     if verbose:
-        logging.warning('')
+        logging.warning('=====calculate_fpga_area=====')
         logging.warning(
             f'Extra LUTs: {extra_lut_count} ({lb_for_extra_lut} LBs)')
         logging.warning(
@@ -55,7 +59,7 @@ def calculate_fpga_area(ram_arch: List[SIVRamArch], logic_block_count: int, extr
     if verbose:
         logging.warning('FPGA Area:')
     fpga_area = 0
-    for arch in [lb_arch] + ram_arch:
+    for arch in [lb_arch] + list(ram_arch.values()):
         lb_to_block_ratio = arch.get_ratio_of_LB()
         chip_block_count = math.floor(
             lb_required_on_chip / lb_to_block_ratio[0] * lb_to_block_ratio[1])
@@ -68,3 +72,16 @@ def calculate_fpga_area(ram_arch: List[SIVRamArch], logic_block_count: int, extr
     if verbose:
         logging.warning(f'FPGA area is {fpga_area}')
     return fpga_area
+
+
+def calculate_fpga_area_for_circuit(ram_arch: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, verbose: bool = False) -> int:
+    assert logical_circuit.circuit_id == circuit_config.circuit_id
+    if verbose:
+        logging.warning(f'circuit_id={logical_circuit.circuit_id}')
+    return calculate_fpga_area(
+        ram_arch=ram_arch,
+        logic_block_count=logical_circuit.num_logic_blocks,
+        extra_lut_count=circuit_config.get_extra_lut_count(
+            ram_modes=logical_circuit.get_ram_modes()),
+        physical_ram_count=circuit_config.get_physical_ram_count(),
+        verbose=verbose)

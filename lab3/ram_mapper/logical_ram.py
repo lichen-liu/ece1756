@@ -20,7 +20,7 @@ LogicalRamT = TypeVar('LogicalRamT', bound='LogicalRam')
 class LogicalRam(NamedTuple):
     circuit_id: int
     ram_id: int
-    mode: RamMode  # tmp, todo move into flag enum
+    mode: RamMode
     depth: int
     width: int
 

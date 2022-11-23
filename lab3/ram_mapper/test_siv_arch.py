@@ -1,10 +1,10 @@
 import unittest
 from .logical_ram import RamMode
 from .physical_arch import RamType, RamShape
-from .stratix_iv_arch import *
+from .siv_arch import *
 
 
-class StratixIVArchTestCase(unittest.TestCase):
+class SIVArchTestCase(unittest.TestCase):
     def test_BlockRamArch(self):
         ram = BlockRamArch(0, RamShape.from_size(256, 16), (10, 1))
         self.assertEqual(ram.get_id(), 0)
@@ -35,25 +35,25 @@ class StratixIVArchTestCase(unittest.TestCase):
             RamMode.TrueDualPort), reduced_width_shapes)
 
     def test_create_from_str(self):
-        self.assertEqual(create_from_str(0, '-b 8192 32 10 1'),
+        self.assertEqual(create_ram_arch_from_str(0, '-b 8192 32 10 1'),
                          BlockRamArch(0, RamShape.from_size(8192, 32), (10, 1)))
-        self.assertEqual(create_from_str(0, '-b 131072 128 300 1'),
+        self.assertEqual(create_ram_arch_from_str(0, '-b 131072 128 300 1'),
                          BlockRamArch(0, RamShape.from_size(131072, 128), (300, 1)))
-        self.assertEqual(create_from_str(0, '-l 1 1'), LUTRamArch(0, (1, 1)))
+        self.assertEqual(create_ram_arch_from_str(0, '-l 1 1'), LUTRamArch(0, (1, 1)))
 
     def test_create_all_from_strs(self):
-        actual = [LUTRamArch(0, (1, 1)),
-                  BlockRamArch(1, RamShape.from_size(8192, 32), (10, 1)),
-                  BlockRamArch(2, RamShape.from_size(131072, 128), (300, 1))]
-        self.assertEqual(create_all_from_strs(
+        actual = {1: LUTRamArch(1, (1, 1)),
+                  2: BlockRamArch(2, RamShape.from_size(8192, 32), (10, 1)),
+                  3: BlockRamArch(3, RamShape.from_size(131072, 128), (300, 1))}
+        self.assertDictEqual(create_all_ram_arch_from_strs(
             ['-l 1 1', '-b 8192 32 10 1', '-b 131072 128 300 1']), actual)
 
     def test_create_all_from_str(self):
-        actual = [LUTRamArch(0, (1, 1)),
-                  BlockRamArch(1, RamShape.from_size(8192, 32), (10, 1)),
-                  BlockRamArch(2, RamShape.from_size(131072, 128), (300, 1))]
-        self.assertEqual(create_all_from_str('-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'),
-                         actual)
+        actual = {1: LUTRamArch(1, (1, 1)),
+                  2: BlockRamArch(2, RamShape.from_size(8192, 32), (10, 1)),
+                  3: BlockRamArch(3, RamShape.from_size(131072, 128), (300, 1))}
+        self.assertDictEqual(create_all_ram_arch_from_str('-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'),
+                             actual)
 
     def test_determine_write_decoder_luts(self):
         expected_pair = [(2, 1), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (
@@ -82,8 +82,8 @@ class StratixIVArchTestCase(unittest.TestCase):
             num_series=8, logical_w=30, ram_mode=RamMode.TrueDualPort), 2*(3*30 + 8))
 
     def test_generate_default_arch(self):
-        self.assertListEqual(generate_default_arch(), [generate_default_lutram(
-        ), generate_default_8k_bram(), generate_default_128k_bram()])
+        self.assertDictEqual(generate_default_ram_arch(), {1: generate_default_lutram(
+        ), 2: generate_default_8k_bram(), 3: generate_default_128k_bram()})
 
     def test_default_lutram_area(self):
         self.assertEqual(generate_default_lutram().get_area(), 40000)

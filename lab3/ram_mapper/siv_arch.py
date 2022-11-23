@@ -1,6 +1,6 @@
 import math
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from . import utils
 from .logical_ram import RamMode
 from .physical_arch import ArchProperty, RamArch, RamType, RamShape
@@ -97,7 +97,7 @@ class RegularLogicBlockArch(ArchProperty):
         return f'RegularLogicBlock self:LUT{ratio_to_lut_str} {super().__str__()}'
 
 
-def create_from_str(id: int, checker_str: str) -> SIVRamArch:
+def create_ram_arch_from_str(id: int, checker_str: str) -> SIVRamArch:
     splitted = checker_str.lower().split()
     if RamType.BLOCK_RAM.value.lower() in splitted[0]:
         sz, mw, lb, br = splitted[1:]
@@ -112,28 +112,31 @@ def create_from_str(id: int, checker_str: str) -> SIVRamArch:
     raise Exception('Unrecognized checker_str RamType')
 
 
-def create_all_from_strs(checker_strs: List[str]) -> List[SIVRamArch]:
-    return [create_from_str(id, checker_str) for id, checker_str in enumerate(checker_strs)]
+def create_all_ram_arch_from_strs(checker_strs: List[str]) -> Dict[int, SIVRamArch]:
+    '''
+    id starting from 1
+    '''
+    return {id+1: create_ram_arch_from_str(id+1, checker_str) for id, checker_str in enumerate(checker_strs)}
 
 
-def create_all_from_str(raw_checker_str: str) -> List[SIVRamArch]:
-    return create_all_from_strs(list(filter(len, raw_checker_str.split('-'))))
+def create_all_ram_arch_from_str(raw_checker_str: str) -> Dict[int, SIVRamArch]:
+    return create_all_ram_arch_from_strs(list(filter(len, raw_checker_str.split('-'))))
 
 
 def generate_default_lutram() -> LUTRamArch:
-    return create_from_str(0, '-l 1 1')
+    return create_ram_arch_from_str(1, '-l 1 1')
 
 
 def generate_default_8k_bram() -> BlockRamArch:
-    return create_from_str(1, '-b 8192 32 10 1')
+    return create_ram_arch_from_str(2, '-b 8192 32 10 1')
 
 
 def generate_default_128k_bram() -> BlockRamArch:
-    return create_from_str(2, '-b 131072 128 300 1')
+    return create_ram_arch_from_str(3, '-b 131072 128 300 1')
 
 
-def generate_default_arch() -> List[SIVRamArch]:
-    return create_all_from_str(
+def generate_default_ram_arch() -> Dict[int, SIVRamArch]:
+    return create_all_ram_arch_from_str(
         '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
 
 # When physical RAMs are combined in parallel to create a wider word, no extra logic is needed.
