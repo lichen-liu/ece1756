@@ -253,3 +253,6 @@ class AllCircuitConfig(ConfigSerializer):
             self.circuits[rc.circuit_id] = CircuitConfig(
                 circuit_id=rc.circuit_id)
         self.circuits[rc.circuit_id].insert_ram_config((rc))
+
+    def insert_circuit_config(self, cc: CircuitConfig):
+        self.circuits[cc.circuit_id] = cc

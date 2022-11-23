@@ -1,9 +1,1 @@
-0 0 31 LW 30 LD 8200 series // The whole RAM split into 2 regions in series
-    // Yellow LUTRAM Region
-    LW 30 LD 8 ID 0 S 1 P 4 Type 1 Mode SinglePort W 20 D 32
-    // Red Border Region, which further split into 2 regions in parallel
-    LW 30 LD 8192 parallel
-        // Blue 128kbit RAM Region
-        LW 16 LD 8192 ID 1 S 1 P 1 Type 3 Mode SinglePort W 16 D 8192
-        // Green 8kbit RAM Region
-        LW 14 LD 8192 ID 2 S 1 P 14 Type 2 Mode SinglePort W 1 D 8192
+// Num_Circuits 1

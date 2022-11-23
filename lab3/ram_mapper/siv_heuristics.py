@@ -24,7 +24,7 @@ def calculate_fpga_area(ram_arch: Dict[int, SIVRamArch], logic_block_count: int,
     regular_lb_used = logic_block_count+lb_for_extra_lut
 
     if verbose:
-        logging.warning('=====calculate_fpga_area=====')
+        logging.warning('=====BEGIN calculate_fpga_area BEGIN=====')
         logging.warning(
             f'Extra LUTs: {extra_lut_count} ({lb_for_extra_lut} LBs)')
         logging.warning(
@@ -71,13 +71,15 @@ def calculate_fpga_area(ram_arch: Dict[int, SIVRamArch], logic_block_count: int,
 
     if verbose:
         logging.warning(f'FPGA area is {fpga_area}')
+        logging.warning('=====END calculate_fpga_area END=====')
+
     return fpga_area
 
 
 def calculate_fpga_area_for_circuit(ram_arch: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, verbose: bool = False) -> int:
     assert logical_circuit.circuit_id == circuit_config.circuit_id
     if verbose:
-        logging.warning(f'circuit_id={logical_circuit.circuit_id}')
+        logging.warning(f'| circuit_id={logical_circuit.circuit_id} |')
     return calculate_fpga_area(
         ram_arch=ram_arch,
         logic_block_count=logical_circuit.num_logic_blocks,

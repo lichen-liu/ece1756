@@ -64,6 +64,6 @@ def merge_grouped_LogicalCircuit(logic_blocks: OrderedDict[int, int], logical_ra
     return result
 
 
-def read_LogicCircuit_from_file(logicblock_filename: str, loigicalram_filename: str) -> Dict[int, LogicalCircuit]:
+def read_LogicalCircuit_from_file(logicblock_filename: str, loigicalram_filename: str) -> Dict[int, LogicalCircuit]:
     return merge_grouped_LogicalCircuit(logic_blocks=read_LogicBlock_from_file(logicblock_filename),
                                         logical_rams=read_grouped_LogicalRam_from_file(loigicalram_filename))
