@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import List, Tuple
 from . import utils
 from .logical_ram import RamMode
-from .physical_ram import RamArch, RamType, RamShape
+from .physical_ram import ArchArea, RamArch, RamType, RamShape
 
 
 class SIVRamArch(RamArch):
@@ -70,6 +70,11 @@ class LUTRamArch(SIVRamArch):
 
     def get_area(self) -> int:
         return 40000
+
+
+class LogicBlockArch(ArchArea):
+    def get_area(self) -> int:
+        return 35000
 
 
 def create_from_str(id: int, checker_str: str) -> SIVRamArch:

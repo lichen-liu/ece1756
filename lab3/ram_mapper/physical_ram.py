@@ -35,6 +35,12 @@ class RamShape(NamedTuple):
         return (self.get_size(), self.width, self.depth)
 
 
+class ArchArea(ABC):
+    @abstractmethod
+    def get_area(self) -> int:
+        pass
+
+
 class RamArchProperty(ABC):
     '''
     A pure base to represent RAM architecture properties.
@@ -72,10 +78,6 @@ class RamArchProperty(ABC):
 
     def __eq__(self, other):
         return type(self) == type(other) and self.__dict__ == other.__dict__
-
-    @abstractmethod
-    def get_area(self) -> int:
-        pass
 
 
 class RamArch(RamArchProperty):

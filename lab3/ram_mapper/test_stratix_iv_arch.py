@@ -98,3 +98,6 @@ class StratixIVRamTestCase(unittest.TestCase):
 
     def test_default_128k_bram_area(self):
         self.assertEqual(generate_default_128k_bram().get_area(), 850543)
+
+    def test_logic_block_area(self):
+        self.assertEqual(LogicBlockArch().get_area(), 35000)
