@@ -47,6 +47,10 @@ class ArchProperty(ABC):
         '''
         pass
 
+    def __str__(self):
+        ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
+        return f'LB:self{ratio_of_lb_str} Area:{self.get_area()}'
+
 
 class RamArchProperty(ArchProperty):
     '''
@@ -73,8 +77,7 @@ class RamArchProperty(ArchProperty):
         pass
 
     def __str__(self):
-        ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
-        return f'{self.get_ram_type().name} {self.get_max_width()} ({self.get_supported_mode()}) LB:self{ratio_of_lb_str}'
+        return f'{self.get_ram_type().name} {self.get_max_width()} ({self.get_supported_mode()}) {super().__str__()}'
 
     def __eq__(self, other):
         return type(self) == type(other) and self.__dict__ == other.__dict__

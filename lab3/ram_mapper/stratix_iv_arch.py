@@ -93,9 +93,8 @@ class RegularLogicBlockArch(ArchProperty):
         return (1, 10)
 
     def __str__(self):
-        ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
         ratio_to_lut_str = str(self.get_ratio_to_LUT()).replace(' ', '')
-        return f'RegularLogicBlock LB:self{ratio_of_lb_str} self:LUT{ratio_to_lut_str}'
+        return f'RegularLogicBlock self:LUT{ratio_to_lut_str} {super().__str__()}'
 
 
 def create_from_str(id: int, checker_str: str) -> SIVRamArch:
