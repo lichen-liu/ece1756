@@ -2,7 +2,7 @@ from collections import defaultdict
 import logging
 
 from . import logical_circuit
-from . import stratix_iv_ram
+from . import stratix_iv_arch
 from . import mapping_config
 from . import test_mapping_config
 
@@ -15,7 +15,7 @@ def run():
         logicblock_filename=logic_block_count_filename, loigicalram_filename=logical_rams_filename)
 
     # Arch input
-    ramarchs = stratix_iv_ram.generate_default_arch()
+    ramarchs = stratix_iv_arch.generate_default_arch()
     logging.info('RAM Archs:')
     for ramarch in ramarchs:
         logging.info(ramarch)

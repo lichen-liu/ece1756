@@ -1,7 +1,7 @@
 import unittest
 from .logical_ram import RamMode
 from .physical_ram import RamType, RamShape
-from .stratix_iv_ram import *
+from .stratix_iv_arch import *
 
 
 class StratixIVRamTestCase(unittest.TestCase):

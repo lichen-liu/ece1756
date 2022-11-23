@@ -8,7 +8,7 @@ from typing import Dict, Iterator, Optional
 from .physical_ram import RamShape
 from .utils import Result, sorted_dict_items
 from .logical_ram import RamMode
-from .stratix_iv_ram import determine_extra_luts
+from .stratix_iv_arch import determine_extra_luts
 
 
 class ConfigVerifier(ABC):
