@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import List, Tuple
 from . import utils
 from .logical_ram import RamMode
-from .physical_ram import ArchArea, RamArch, RamType, RamShape
+from .physical_arch import ArchProperty, RamArch, RamType, RamShape
 
 
 class SIVRamArch(RamArch):
@@ -50,7 +50,7 @@ class BlockRamArch(SIVRamArch):
 class LUTRamArch(SIVRamArch):
     def __init__(self, id: int, ratio_of_LB: Tuple[int, int]):
         super().__init__(id)
-        self._ratio_of_LB = ratio_of_LB
+        self._ratio_of_LB = (ratio_of_LB[0]+ratio_of_LB[1], ratio_of_LB[1])
 
     def get_ram_type(self) -> RamType:
         return RamType.LUTRAM
@@ -72,9 +72,30 @@ class LUTRamArch(SIVRamArch):
         return 40000
 
 
-class LogicBlockArch(ArchArea):
+class RegularLogicBlockArch(ArchProperty):
+    '''
+    For regular (non-LUTRAM) LB
+    '''
+
     def get_area(self) -> int:
         return 35000
+
+    def get_ratio_of_LB(self) -> Tuple[int, int]:
+        '''
+        ratio of logic block to regular (non-LUTRAM) LB
+        '''
+        return (2, 1)
+
+    def get_ratio_to_LUT(self) -> Tuple[int, int]:
+        '''
+        ratio of logic block to lut
+        '''
+        return (1, 10)
+
+    def __str__(self):
+        ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')
+        ratio_to_lut_str = str(self.get_ratio_to_LUT()).replace(' ', '')
+        return f'RegularLogicBlock LB:self{ratio_of_lb_str} self:LUT{ratio_to_lut_str}'
 
 
 def create_from_str(id: int, checker_str: str) -> SIVRamArch:

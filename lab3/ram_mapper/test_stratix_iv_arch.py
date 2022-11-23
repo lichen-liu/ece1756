@@ -1,6 +1,6 @@
 import unittest
 from .logical_ram import RamMode
-from .physical_ram import RamType, RamShape
+from .physical_arch import RamType, RamShape
 from .stratix_iv_arch import *
 
 
@@ -95,4 +95,4 @@ class StratixIVArchTestCase(unittest.TestCase):
         self.assertEqual(generate_default_128k_bram().get_area(), 850543)
 
     def test_logic_block_area(self):
-        self.assertEqual(LogicBlockArch().get_area(), 35000)
+        self.assertEqual(RegularLogicBlockArch().get_area(), 35000)

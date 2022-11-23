@@ -6,7 +6,7 @@ from enum import Enum, auto
 from itertools import chain
 import logging
 from typing import Dict, Iterator, Optional
-from .physical_ram import RamShape
+from .physical_arch import RamShape
 from .utils import Result, sorted_dict_items
 from .logical_ram import RamMode
 from .stratix_iv_arch import determine_extra_luts

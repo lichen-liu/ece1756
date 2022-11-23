@@ -35,13 +35,20 @@ class RamShape(NamedTuple):
         return (self.get_size(), self.width, self.depth)
 
 
-class ArchArea(ABC):
+class ArchProperty(ABC):
     @abstractmethod
     def get_area(self) -> int:
         pass
 
+    @abstractmethod
+    def get_ratio_of_LB(self) -> Tuple[int, int]:
+        '''
+        Ratio of logic blocks to current block type
+        '''
+        pass
 
-class RamArchProperty(ABC):
+
+class RamArchProperty(ArchProperty):
     '''
     A pure base to represent RAM architecture properties.
     Only universal assumptions are made
@@ -55,13 +62,6 @@ class RamArchProperty(ABC):
 
     @abstractmethod
     def get_max_width(self) -> RamShape:
-        pass
-
-    @abstractmethod
-    def get_ratio_of_LB(self) -> Tuple[int, int]:
-        '''
-        Ratio of logic blocks to RAM
-        '''
         pass
 
     @abstractmethod

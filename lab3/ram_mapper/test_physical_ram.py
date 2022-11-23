@@ -1,5 +1,5 @@
 import unittest
-from .physical_ram import RamShape
+from .physical_arch import RamShape
 
 
 class PhysicalRamTestCase(unittest.TestCase):
