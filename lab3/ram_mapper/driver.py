@@ -23,7 +23,7 @@ def run():
     # Mapping output
     acc = mapping_config.AllCircuitConfig()
     rc_list = [
-        test_mapping_config.MappingConfigTestCase.generate_simple_RamConfig(),
+        test_mapping_config.MappingConfigTestCase.generate_1level_RamConfig(),
         test_mapping_config.MappingConfigTestCase.generate_2level_RamConfig(),
         test_mapping_config.MappingConfigTestCase.generate_3level_RamConfig()]
     for rc in rc_list:

@@ -1,9 +1,8 @@
-from typing import List
+from collections import Counter
+from typing import Dict, List
 
 from .stratix_iv_arch import SIVRamArch
-from .logical_circuit import LogicalCircuit
-from .mapping_config import CircuitConfig
 
 
-def calculate_fpga_area(ram_arch: List[SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig) -> int:
+def calculate_fpga_area(ram_arch: List[SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
     pass
