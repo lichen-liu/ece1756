@@ -12,8 +12,7 @@ class MappingConfigTestCase(unittest.TestCase):
                                 ram_mode=RamMode.SimpleDualPort, physical_shape=RamShape(width=10, depth=64))
         lrc = LogicalRamConfig(
             logical_shape=RamShape(width=12, depth=45), prc=prc)
-        rc = RamConfig(circuit_id=1, ram_id=2,
-                       num_extra_lut=0, lrc=lrc)
+        rc = RamConfig(circuit_id=1, ram_id=2, lrc=lrc)
         return rc
 
     def test_RamConfig_1level_verify(self):
@@ -25,9 +24,9 @@ class MappingConfigTestCase(unittest.TestCase):
         rc_expected_str = '1 2 0 LW 12 LD 45 ID 0 S 1 P 2 Type 1 Mode SimpleDualPort W 10 D 64'
         self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_RamConfig_1level_update_extra_luts(self):
+    def test_RamConfig_1level_get_extra_lut_count(self):
         rc = self.generate_1level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(), 0)
+        self.assertEqual(rc.get_extra_lut_count(), 0)
 
     def test_RamConfig_1level_get_physical_ram_count(self):
         rc = self.generate_1level_RamConfig()
@@ -40,8 +39,7 @@ class MappingConfigTestCase(unittest.TestCase):
     def test_RamConfig_verify_invalid(self):
         def generate_rc0():
             lrc = LogicalRamConfig(logical_shape=RamShape(width=12, depth=45))
-            rc = RamConfig(circuit_id=1, ram_id=2,
-                           num_extra_lut=0, lrc=lrc)
+            rc = RamConfig(circuit_id=1, ram_id=2, lrc=lrc)
             return rc
         rc0 = generate_rc0()
         self.assertFalse(rc0.verify())
@@ -62,8 +60,7 @@ class MappingConfigTestCase(unittest.TestCase):
         lrc = LogicalRamConfig(logical_shape=RamShape(
             width=30, depth=1025), clrc=clrc)
 
-        rc = RamConfig(circuit_id=3, ram_id=7,
-                       num_extra_lut=31, lrc=lrc)
+        rc = RamConfig(circuit_id=3, ram_id=7, lrc=lrc)
         return rc
 
     def test_RamConfig_2level_verify(self):
@@ -77,9 +74,9 @@ class MappingConfigTestCase(unittest.TestCase):
     LW 30 LD 1 ID 1 S 1 P 2 Type 1 Mode SinglePort W 20 D 32'''
         self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_RamConfig_2level_update_extra_luts(self):
+    def test_RamConfig_2level_get_extra_lut_count(self):
         rc = self.generate_2level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(), 31)
+        self.assertEqual(rc.get_extra_lut_count(), 31)
 
     def test_RamConfig_2level_get_physical_ram_count(self):
         rc = self.generate_2level_RamConfig()
@@ -115,8 +112,7 @@ class MappingConfigTestCase(unittest.TestCase):
         lrc012 = LogicalRamConfig(
             logical_shape=RamShape(width=30, depth=8200), clrc=clrc012)
 
-        rc = RamConfig(circuit_id=3, ram_id=8,
-                       num_extra_lut=31, lrc=lrc012)
+        rc = RamConfig(circuit_id=3, ram_id=8, lrc=lrc012)
         return rc
 
     def test_RamConfig_3level_verify(self):
@@ -132,9 +128,9 @@ class MappingConfigTestCase(unittest.TestCase):
         LW 14 LD 8192 ID 2 S 1 P 14 Type 2 Mode SinglePort W 1 D 8192'''
         self.assertEqual(rc.serialize(0), rc_expected_str)
 
-    def test_RamConfig_3level_update_extra_luts(self):
+    def test_RamConfig_3level_get_extra_lut_count(self):
         rc = self.generate_3level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(), 31)
+        self.assertEqual(rc.get_extra_lut_count(), 31)
 
     def test_RamConfig_3level_get_physical_ram_count(self):
         rc = self.generate_3level_RamConfig()
@@ -159,4 +155,4 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_CircuitConfig_2_3_level_get_extra_lut_count(self):
         cc = self.generate_2_3_level_CircuitConfig()
-        self.assertEqual(cc.get_extra_luts(), 62)
+        self.assertEqual(cc.get_extra_lut_count(), 62)

@@ -59,7 +59,7 @@ class SimpleCircuitSolver:
                 ram_mode=lr.mode,
                 physical_shape=physical_shape)
 
-        return RamConfig(circuit_id=self._logical_circuit.circuit_id, ram_id=ram_id, num_extra_lut=0, lrc=None)
+        return RamConfig(circuit_id=self._logical_circuit.circuit_id, ram_id=ram_id, lrc=None)
 
     def solve(self) -> CircuitConfig:
         cc = CircuitConfig(circuit_id=self._logical_circuit.circuit_id)

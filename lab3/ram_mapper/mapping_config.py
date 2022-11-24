@@ -63,28 +63,29 @@ class ConfigPhysicalRamCount(ABC):
         pass
 
 
+class ConfigExtraLutCount(ABC):
+    @abstractmethod
+    def get_extra_lut_count(self) -> int:
+        pass
+
+
 @dataclass
-class RamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigRamMode):
+class RamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigRamMode, ConfigExtraLutCount):
     circuit_id: int
     ram_id: int
-    num_extra_lut: int
     lrc: LogicalRamConfig
 
     def verify(self) -> Result:
         return self.lrc.verify()
 
     def serialize(self, level: int) -> str:
-        return f'{self.circuit_id} {self.ram_id} {self.num_extra_lut} {self.lrc.serialize(level)}'
+        return f'{self.circuit_id} {self.ram_id} {self.get_extra_lut_count()} {self.lrc.serialize(level)}'
 
     def get_shape(self) -> RamShape:
         return self.lrc.get_shape()
 
-    def update_extra_luts(self) -> int:
-        '''
-        Updates num_extra_lut and return
-        '''
-        self.num_extra_lut = self.lrc.get_extra_luts()
-        return self.num_extra_lut
+    def get_extra_lut_count(self) -> int:
+        return self.lrc.get_extra_lut_count()
 
     def get_physical_ram_count(self) -> Counter[int]:
         return self.lrc.get_physical_ram_count()
@@ -94,7 +95,7 @@ class RamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRam
 
 
 @dataclass
-class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigRamMode):
+class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigRamMode, ConfigExtraLutCount):
     logical_shape: RamShape
     clrc: Optional[CombinedLogicalRamConfig] = None
     prc: Optional[PhysicalRamConfig] = None
@@ -125,13 +126,13 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
     def get_shape(self) -> RamShape:
         return self.logical_shape
 
-    def get_extra_luts(self) -> int:
+    def get_extra_lut_count(self) -> int:
         if self.prc is not None:
             return determine_extra_luts(num_series=self.prc.physical_shape_fit.num_series,
                                         logical_w=self.logical_shape.width, ram_mode=self.get_ram_mode())
         else:
-            lrc_l_extra_luts = self.clrc.lrc_l.get_extra_luts()
-            lrc_r_extra_luts = self.clrc.lrc_r.get_extra_luts()
+            lrc_l_extra_luts = self.clrc.lrc_l.get_extra_lut_count()
+            lrc_r_extra_luts = self.clrc.lrc_r.get_extra_lut_count()
             clrc_extra_luts = 0
             if self.clrc.split == RamSplitDimension.series:
                 clrc_extra_luts = determine_extra_luts(
@@ -227,7 +228,7 @@ class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhy
 
 
 @dataclass
-class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount):
+class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCount):
     circuit_id: int
     rams: Dict[int, RamConfig] = field(default_factory=dict)
 
@@ -251,8 +252,8 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount):
             c.update(ram.get_physical_ram_count())
         return c
 
-    def get_extra_luts(self) -> int:
-        return sum(map(lambda ram_id_rc: ram_id_rc[1].update_extra_luts(), sorted_dict_items(self.rams)))
+    def get_extra_lut_count(self) -> int:
+        return sum(map(lambda ram_id_rc: ram_id_rc[1].get_extra_lut_count(), sorted_dict_items(self.rams)))
 
 
 @dataclass
