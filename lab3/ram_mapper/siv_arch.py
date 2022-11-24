@@ -162,16 +162,18 @@ def determine_read_mux_luts_per_bit(r: int) -> int:
     '''
     r - r physical RAMs in serial
     '''
-    def helper(r: int) -> int:
-        n_4mux = int(math.ceil(r / 4.0))
-        if n_4mux == 1:
-            # no cascade needed, terminates at current level
-            return n_4mux
-        else:
-            # need cascade, go to next level
-            return n_4mux + helper(n_4mux)
     assert r > 1
-    return helper(r)
+    assert r <= 16
+    if r <= 4:
+        return 1
+    elif r <= 7:
+        return 2
+    elif r <= 10:
+        return 3
+    elif r <= 13:
+        return 4
+    else:
+        return 5
 
 
 def determine_read_mux_luts(r: int, logical_w: int) -> int:

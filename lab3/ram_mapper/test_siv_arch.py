@@ -39,7 +39,8 @@ class SIVArchTestCase(unittest.TestCase):
                          BlockRamArch(0, RamShape.from_size(8192, 32), (10, 1)))
         self.assertEqual(create_ram_arch_from_str(0, '-b 131072 128 300 1'),
                          BlockRamArch(0, RamShape.from_size(131072, 128), (300, 1)))
-        self.assertEqual(create_ram_arch_from_str(0, '-l 1 1'), LUTRamArch(0, (1, 1)))
+        self.assertEqual(create_ram_arch_from_str(
+            0, '-l 1 1'), LUTRamArch(0, (1, 1)))
 
     def test_create_all_from_strs(self):
         actual = {1: LUTRamArch(1, (1, 1)),
@@ -62,8 +63,8 @@ class SIVArchTestCase(unittest.TestCase):
             self.assertEqual(determine_write_decoder_luts(r), expected_result)
 
     def test_determine_read_mux_luts_per_bit(self):
-        expected_pair = [(2, 1), (3, 1), (4, 1), (5, 3), (6, 3), (7, 3), (
-            8, 3), (9, 4), (10, 4), (11, 4), (12, 4), (13, 5), (14, 5), (15, 5), (16, 5)]
+        expected_pair = [(2, 1), (3, 1), (4, 1), (5, 2), (6, 2), (7, 2), (
+            8, 3), (9, 3), (10, 3), (11, 4), (12, 4), (13, 4), (14, 5), (15, 5), (16, 5)]
         for r, expected_result in expected_pair:
             self.assertEqual(
                 determine_read_mux_luts_per_bit(r), expected_result)
