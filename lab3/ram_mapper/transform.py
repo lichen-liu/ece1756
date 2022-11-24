@@ -58,6 +58,12 @@ def get_waste_bits(physical_shape: RamShape, fit: RamShapeFit, logical_shape: Ra
 class SimpleCircuitSolver:
     def __init__(self, ram_archs: Dict[int, SIVRamArch]):
         self._ram_archs = ram_archs
+        self._physical_ram_uid = 0
+
+    def assign_physical_ram_uid(self) -> int:
+        assigned_value = self._physical_ram_uid
+        self._physical_ram_uid += 1
+        return assigned_value
 
     def solve_single_ram(self, logical_ram: LogicalRam) -> RamConfig:
         def find_min_count(physical_shape, fit):
@@ -69,6 +75,8 @@ class SimpleCircuitSolver:
         # Find candidates
         candidate_ram_arch_id_and_physical_shape_list = list()
         for ram_arch_id, ram_arch in sorted_dict_items(self._ram_archs):
+            if logical_ram.mode not in ram_arch.get_supported_mode():
+                continue
             physical_shapes = ram_arch.get_shapes_for_mode(logical_ram.mode)
             optimizer_funcs = [find_min_count, find_min_series]
             candidate_physical_shapes = find_min_ram_shape_fit(
@@ -79,7 +87,7 @@ class SimpleCircuitSolver:
         # Convert candidates into LogicalRamConfigs
         def convert_to_lrc(ram_arch_id: int, physical_shape: RamShape):
             prc = PhysicalRamConfig(
-                id=0,
+                id=-1,
                 physical_shape_fit=logical_ram.shape.get_fit(
                     smaller_shape=physical_shape),
                 ram_arch_id=ram_arch_id,
@@ -89,21 +97,24 @@ class SimpleCircuitSolver:
         candidate_lrc_list = [convert_to_lrc(ram_arch_id=ram_arch_id, physical_shape=physical_shape)
                               for ram_arch_id, physical_shape in candidate_ram_arch_id_and_physical_shape_list]
 
-        # Calculate aspected ram area
+        # Calculate aspect ram area
         area_list = [calculate_fpga_area_for_ram_config(
             ram_archs=self._ram_archs, logic_block_count=0, logical_ram_config=lrc, verbose=False)for lrc in candidate_lrc_list]
         candidate_lrc_area_list = list(
             zip(candidate_lrc_list, area_list))
-        logging.info(f'Candidates:')
+        logging.debug('Candidates:')
         for lrc, area in candidate_lrc_area_list:
-            logging.info(f'{lrc.serialize(0)} ASPECTED_AREA={area}')
+            logging.debug(f'{lrc.serialize(0)} ASPECTED_AREA={area}')
 
         # Find best candidate
         best_lrc, best_fpga_area = min(candidate_lrc_area_list,
                                        key=lambda lrc_area: lrc_area[1])
 
-        logging.info(f'Best:')
-        logging.info(f'{best_lrc.serialize(0)} ASPECTED_AREA={best_fpga_area}')
+        # Finalize the best candidate
+        best_lrc.prc.id = self.assign_physical_ram_uid()
+        logging.debug('Best:')
+        logging.debug(
+            f'{best_lrc.serialize(0)} ASPECTED_AREA={best_fpga_area}')
 
         return RamConfig(circuit_id=logical_ram.circuit_id, ram_id=logical_ram.ram_id, lrc=best_lrc)
 

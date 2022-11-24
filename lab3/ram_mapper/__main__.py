@@ -1,9 +1,6 @@
 import argparse
 import ram_mapper
 
-# Logger setting for module execution mode
-ram_mapper.init_logger()
-
 # Run
 parser = argparse.ArgumentParser()
 ram_mapper.init(parser)

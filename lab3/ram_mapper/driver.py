@@ -1,6 +1,6 @@
 import logging
 
-from .utils import sorted_dict_items
+from .utils import init_logger, sorted_dict_items
 
 from . import siv_heuristics
 from . import transform
@@ -25,10 +25,28 @@ def init(parser):
         '--no_area_report',
         action='store_true',
         help='Disable area report')
+    parser.add_argument(
+        '--verbose', '-v',
+        action='count',
+        default=0,
+        help='Raise logging verbosity, default is Warning+')
 
+
+def verbosity_to_logging_level(verbose_count: int) -> int:
+    if verbose_count == 0:
+        return logging.WARNING
+    elif verbose_count == 1:
+        return logging.INFO
+    else:
+        return logging.DEBUG
 
 # python3 -m ram_mapper --lb=test0/logic_block_count.txt --lr=test0/logical_rams.txt --out=test0/mapping.txt
+
+
 def run(args):
+    # Logger setting for module execution mode
+    init_logger(verbosity_to_logging_level(args.verbose))
+
     logging.warning(f'{args}')
     logic_block_count_filename = args.lb
     logical_rams_filename = args.lr
@@ -41,7 +59,7 @@ def run(args):
     # Arch input
     ram_archs = siv_arch.generate_default_ram_arch()
     logging.info('RAM Archs:')
-    for ram_arch in ram_archs:
+    for _, ram_arch in sorted_dict_items(ram_archs):
         logging.info(ram_arch)
 
     # Mapping output
