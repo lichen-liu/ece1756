@@ -52,7 +52,10 @@ def run(args):
     acc.serialize_to_file(mapping_filename)
 
     if not args.no_area_report:
+        logging.warning('=================')
+        logging.warning('Final Area Report')
         # Print area
         for circuit_id, cc in sorted_dict_items(acc.circuits):
             siv_heuristics.calculate_fpga_area_for_circuit(
-                ram_arch=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=True)
+                ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=True)
+        logging.warning('=================')
