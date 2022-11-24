@@ -13,9 +13,6 @@ class LogicalCircuit(NamedTuple):
     rams: Dict[int, LogicalRam]
     num_logic_blocks: int
 
-    def get_ram_modes(self) -> Dict[int, RamMode]:
-        return dict(map(lambda kv: (kv[0], kv[1].mode), self.rams.items()))
-
 
 def parse_LogicBlock(lines_iter: Iterator[str]) -> OrderedDict[int, int]:
     # line 0: Circuit	"# Logic blocks (N=10, k=6, fracturable)"

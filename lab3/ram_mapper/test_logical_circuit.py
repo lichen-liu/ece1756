@@ -51,8 +51,3 @@ class LogicalCircuitTestCase(unittest.TestCase):
         expected_lcs = {0: lc0, 1: lc1, 2: lc2}
         actual_lcs = self.generate_simple_LogicalCircuit()
         self.assertDictEqual(actual_lcs, expected_lcs)
-
-    def test_get_ram_modes(self):
-        lc = self.generate_simple_LogicalCircuit()[0]
-        self.assertDictEqual(lc.get_ram_modes(), {
-                             0: RamMode.SimpleDualPort, 1: RamMode.ROM, 2: RamMode.SinglePort})

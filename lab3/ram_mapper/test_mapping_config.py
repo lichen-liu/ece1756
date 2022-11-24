@@ -27,11 +27,15 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_1level_update_extra_luts(self):
         rc = self.generate_1level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(RamMode.SimpleDualPort), 0)
+        self.assertEqual(rc.update_extra_luts(), 0)
 
     def test_RamConfig_1level_get_physical_ram_count(self):
         rc = self.generate_1level_RamConfig()
         self.assertDictEqual(rc.get_physical_ram_count(), Counter({1: 2}))
+
+    def test_RamConfig_1level_get_ram_mode(self):
+        rc = self.generate_1level_RamConfig()
+        self.assertEqual(rc.get_ram_mode(), RamMode.SimpleDualPort)
 
     def test_RamConfig_verify_invalid(self):
         def generate_rc0():
@@ -75,14 +79,18 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_2level_update_extra_luts(self):
         rc = self.generate_2level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(RamMode.SinglePort), 31)
+        self.assertEqual(rc.update_extra_luts(), 31)
 
     def test_RamConfig_2level_get_physical_ram_count(self):
         rc = self.generate_2level_RamConfig()
         self.assertDictEqual(rc.get_physical_ram_count(),
                              Counter({1: 2, 2: 4}))
 
-    @staticmethod
+    def test_RamConfig_2level_get_ram_mode(self):
+        rc = self.generate_2level_RamConfig()
+        self.assertEqual(rc.get_ram_mode(), RamMode.SinglePort)
+
+    @ staticmethod
     def generate_3level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=4), ram_arch_id=1,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=20, depth=32))
@@ -126,12 +134,16 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_3level_update_extra_luts(self):
         rc = self.generate_3level_RamConfig()
-        self.assertEqual(rc.update_extra_luts(RamMode.SinglePort), 31)
+        self.assertEqual(rc.update_extra_luts(), 31)
 
     def test_RamConfig_3level_get_physical_ram_count(self):
         rc = self.generate_3level_RamConfig()
         self.assertDictEqual(rc.get_physical_ram_count(),
                              Counter({1: 4, 2: 14, 3: 1}))
+
+    def test_RamConfig_3level_get_ram_mode(self):
+        rc = self.generate_3level_RamConfig()
+        self.assertEqual(rc.get_ram_mode(), RamMode.SinglePort)
 
     @staticmethod
     def generate_2_3_level_CircuitConfig() -> CircuitConfig:
@@ -147,5 +159,4 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_CircuitConfig_2_3_level_get_extra_lut_count(self):
         cc = self.generate_2_3_level_CircuitConfig()
-        self.assertEqual(cc.get_extra_lut_count(
-            ram_modes={7: RamMode.SinglePort, 8: RamMode.SinglePort}), 62)
+        self.assertEqual(cc.get_extra_luts(), 62)
