@@ -1,4 +1,6 @@
 from __future__ import annotations
+from timeit import default_timer
+from contextlib import contextmanager
 from collections import OrderedDict
 import logging
 import math
@@ -10,6 +12,18 @@ def init_logger(level=logging.DEBUG):
     # TODO: set default to logging.INFO
     logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)-6s [%(filename)s] %(message)s',
                         datefmt='%y%m%d:%H:%M:%S', level=level)
+
+
+@contextmanager
+def elapsed_timer():
+    '''
+    https://stackoverflow.com/a/30024601
+    '''
+    start = default_timer()
+    def elapser(): return default_timer() - start
+    yield lambda: elapser()
+    end = default_timer()
+    def elapser(): return end-start
 
 
 def is_pow2(n: int) -> bool:

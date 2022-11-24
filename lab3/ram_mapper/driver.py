@@ -2,6 +2,7 @@ import logging
 
 from .utils import init_logger, sorted_dict_items
 
+from . import utils
 from . import siv_heuristics
 from . import transform
 from . import logical_circuit
@@ -32,6 +33,12 @@ def init(parser):
         help='Raise logging verbosity, default is Warning+')
 
 
+def main(args):
+    with utils.elapsed_timer() as elapsed:
+        run(args)
+    logging.warning(f'Total elapsed {elapsed():.3f} seconds')
+
+
 def verbosity_to_logging_level(verbose_count: int) -> int:
     if verbose_count == 0:
         return logging.WARNING
@@ -39,6 +46,7 @@ def verbosity_to_logging_level(verbose_count: int) -> int:
         return logging.INFO
     else:
         return logging.DEBUG
+
 
 # python3 -m ram_mapper --lb=test0/logic_block_count.txt --lr=test0/logical_rams.txt --out=test0/mapping.txt
 

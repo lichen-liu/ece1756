@@ -5,5 +5,5 @@ def init(parser):
     driver.init(parser)
 
 
-def run(args):
-    driver.run(args)
+def main(args):
+    driver.main(args)
