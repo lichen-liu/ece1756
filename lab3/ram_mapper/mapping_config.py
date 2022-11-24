@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Iterator, Optional
 from .physical_arch import RamShape
 from .utils import Result, sorted_dict_items
-from .logical_ram import RamMode
+from .logical_ram import RamMode, RamShapeFit
 from .siv_arch import determine_extra_luts
 
 
@@ -118,7 +118,7 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
 
     def get_extra_luts(self, usage_mode: RamMode) -> int:
         if self.prc is not None:
-            return determine_extra_luts(num_series=self.prc.num_series,
+            return determine_extra_luts(num_series=self.prc.physical_shape_fit.num_series,
                                         logical_w=self.logical_shape.width, ram_mode=usage_mode)
         else:
             lrc_l_extra_luts = self.clrc.lrc_l.get_extra_luts(
@@ -186,8 +186,7 @@ class CombinedLogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, Co
 @dataclass
 class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
     id: int
-    num_series: int
-    num_parallel: int
+    physical_shape_fit: RamShapeFit
     ram_arch_id: int
     ram_mode: RamMode
     physical_shape: RamShape
@@ -196,13 +195,13 @@ class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhy
         return Result.good()
 
     def serialize(self, level: int) -> str:
-        return f'ID {self.id} S {self.num_series} P {self.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.physical_shape.width} D {self.physical_shape.depth}'
+        return f'ID {self.id} S {self.physical_shape_fit.num_series} P {self.physical_shape_fit.num_parallel} Type {self.ram_arch_id} Mode {self.ram_mode.name} W {self.physical_shape.width} D {self.physical_shape.depth}'
 
     def get_shape(self) -> RamShape:
-        return RamShape(width=self.num_parallel*self.physical_shape.width, depth=self.num_series * self.physical_shape.depth)
+        return RamShape(width=self.physical_shape_fit.num_parallel*self.physical_shape.width, depth=self.physical_shape_fit.num_series * self.physical_shape.depth)
 
     def get_physical_ram_count(self) -> Counter[int]:
-        return Counter({self.ram_arch_id: self.num_parallel*self.num_series})
+        return Counter({self.ram_arch_id: self.physical_shape_fit.num_parallel*self.physical_shape_fit.num_series})
 
 
 @dataclass

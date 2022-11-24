@@ -1,14 +1,14 @@
 from collections import Counter
 import unittest
 
-from .logical_ram import RamShape
+from .logical_ram import RamShape, RamShapeFit
 from .mapping_config import CircuitConfig, RamConfig, LogicalRamConfig, PhysicalRamConfig, RamMode, CombinedLogicalRamConfig, RamSplitDimension
 
 
 class MappingConfigTestCase(unittest.TestCase):
     @staticmethod
     def generate_1level_RamConfig() -> RamConfig:
-        prc = PhysicalRamConfig(id=0, num_series=1, num_parallel=2, ram_arch_id=1,
+        prc = PhysicalRamConfig(id=0, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=2), ram_arch_id=1,
                                 ram_mode=RamMode.SimpleDualPort, physical_shape=RamShape(width=10, depth=64))
         lrc = LogicalRamConfig(
             logical_shape=RamShape(width=12, depth=45), prc=prc)
@@ -44,11 +44,11 @@ class MappingConfigTestCase(unittest.TestCase):
 
     @staticmethod
     def generate_2level_RamConfig() -> RamConfig:
-        prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=2,
+        prc0 = PhysicalRamConfig(id=0, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=4), ram_arch_id=2,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=8, depth=1024))
         lrc0 = LogicalRamConfig(logical_shape=RamShape(
             width=30, depth=1024), prc=prc0)
-        prc1 = PhysicalRamConfig(id=1, num_series=1, num_parallel=2, ram_arch_id=1,
+        prc1 = PhysicalRamConfig(id=1, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=2), ram_arch_id=1,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=20, depth=32))
         lrc1 = LogicalRamConfig(
             logical_shape=RamShape(width=30, depth=1), prc=prc1)
@@ -84,16 +84,16 @@ class MappingConfigTestCase(unittest.TestCase):
 
     @staticmethod
     def generate_3level_RamConfig() -> RamConfig:
-        prc0 = PhysicalRamConfig(id=0, num_series=1, num_parallel=4, ram_arch_id=1,
+        prc0 = PhysicalRamConfig(id=0, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=4), ram_arch_id=1,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=20, depth=32))
         lrc0 = LogicalRamConfig(
             logical_shape=RamShape(width=30, depth=8), prc=prc0)
 
-        prc1 = PhysicalRamConfig(id=1, num_series=1, num_parallel=1, ram_arch_id=3,
+        prc1 = PhysicalRamConfig(id=1, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=1), ram_arch_id=3,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=16, depth=8192))
         lrc1 = LogicalRamConfig(logical_shape=RamShape(
             width=16, depth=8192), prc=prc1)
-        prc2 = PhysicalRamConfig(id=2, num_series=1, num_parallel=14, ram_arch_id=2,
+        prc2 = PhysicalRamConfig(id=2, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=14), ram_arch_id=2,
                                  ram_mode=RamMode.SinglePort, physical_shape=RamShape(width=1, depth=8192))
         lrc2 = LogicalRamConfig(logical_shape=RamShape(
             width=14, depth=8192), prc=prc2)

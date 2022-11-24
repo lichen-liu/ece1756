@@ -2,7 +2,7 @@ from typing import Callable, Dict, List
 
 from .logical_ram import RamShape, RamShapeFit
 from .utils import T, sorted_dict_items
-from .mapping_config import AllCircuitConfig, CircuitConfig, RamConfig
+from .mapping_config import AllCircuitConfig, CircuitConfig, PhysicalRamConfig, RamConfig
 from .logical_circuit import LogicalCircuit
 from .siv_arch import SIVRamArch
 
@@ -38,10 +38,26 @@ class SimpleCircuitSolver:
     def solve_single_ram(self, ram_id: int) -> RamConfig:
         lr = self._logical_circuit.rams[ram_id]
 
+        candidate_ram_arch_id_and_physical_shape = list()
         for ram_arch_id, ram_arch in sorted_dict_items(self._ram_archs):
             physical_shapes = ram_arch.get_shapes_for_mode(lr.mode)
             min_fit_physical_shape = find_min_fit(
-                physical_shapes, lr.shape, key_func=lambda fit: fit.get_count())
+                physical_shapes, lr.shape, key_func=lambda fit: (fit.get_count(), fit.num_series))
+            candidate_ram_arch_id_and_physical_shape.append(
+                (ram_arch_id, min_fit_physical_shape))
+            min_serial_physical_shape = find_min_fit(
+                physical_shapes, lr.shape, key_func=lambda fit: (fit.num_series, fit.get_count()))
+            candidate_ram_arch_id_and_physical_shape.append(
+                (ram_arch_id, min_serial_physical_shape))
+
+        for ram_arch_id, physical_shape in candidate_ram_arch_id_and_physical_shape:
+            prc = PhysicalRamConfig(
+                id=0,
+                physical_shape_fit=lr.shape.get_fit(
+                    smaller_shape=physical_shape),
+                ram_arch_id=ram_arch_id,
+                ram_mode=lr.mode,
+                physical_shape=physical_shape)
 
         return RamConfig(circuit_id=self._logical_circuit.circuit_id, ram_id=ram_id, num_extra_lut=0, lrc=None)
 

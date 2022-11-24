@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 import math
 
-from .mapping_config import CircuitConfig
+from .mapping_config import CircuitConfig, LogicalRamConfig
 
 from .logical_circuit import LogicalCircuit
 
@@ -87,3 +87,12 @@ def calculate_fpga_area_for_circuit(ram_arch: Dict[int, SIVRamArch], logical_cir
             ram_modes=logical_circuit.get_ram_modes()),
         physical_ram_count=circuit_config.get_physical_ram_count(),
         verbose=verbose)
+
+
+# def calculate_fpga_area_for_ram_config(ram_arch: Dict[int, SIVRamArch], logic_block_count: int, logical_ram_config: LogicalRamConfig, verbose: bool = False) -> int:
+#     return calculate_fpga_area(
+#         ram_arch=ram_arch,
+#         logic_block_count=logic_block_count,
+#         extra_lut_count=logical_ram_config.get_extra_luts(),
+#         physical_ram_count=circuit_config.get_physical_ram_count(),
+#         verbose=verbose)
