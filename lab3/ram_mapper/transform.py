@@ -1,7 +1,7 @@
 import logging
 from typing import Callable, Dict, List, Tuple
 
-from .siv_heuristics import calculate_fpga_area_for_ram_config
+from .siv_heuristics import calculate_fpga_qor_for_ram_config
 
 from .logical_ram import LogicalRam, RamShape, RamShapeFit
 from .utils import T, sorted_dict_items
@@ -102,8 +102,8 @@ class PerRamGreedyCircuitSolver:
                               for ram_arch_id, physical_shape in candidate_ram_arch_id_and_physical_shape_list]
 
         # Calculate aspect ram area
-        area_list = [calculate_fpga_area_for_ram_config(
-            ram_archs=self._ram_archs, logic_block_count=0, logical_ram_config=lrc, verbose=False)for lrc in candidate_lrc_list]
+        area_list = [calculate_fpga_qor_for_ram_config(
+            ram_archs=self._ram_archs, logic_block_count=0, logical_ram_config=lrc, verbose=False).fpga_area for lrc in candidate_lrc_list]
         candidate_lrc_area_list = list(
             zip(candidate_lrc_list, area_list))
         logging.debug('Candidates:')

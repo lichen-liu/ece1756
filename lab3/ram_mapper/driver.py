@@ -1,6 +1,6 @@
 import logging
 import statistics
-from typing import List
+from typing import Iterable, List
 
 from .utils import init_logger, sorted_dict_items
 from . import utils
@@ -49,7 +49,7 @@ def verbosity_to_logging_level(verbose_count: int) -> int:
         return logging.DEBUG
 
 
-def geomean_fpga_area(fpga_area_list: List[int]) -> float:
+def geomean_fpga_area(fpga_area_list: Iterable[int]) -> float:
     factor = 10000000.0
     fpga_area_list_scaled_down = map(
         lambda area: float(area)/factor, fpga_area_list)
@@ -86,19 +86,22 @@ def run(args):
         lcs), 'Final mapping result must contain same number of circuits as logical_ram input'
     acc.serialize_to_file(mapping_filename)
 
-    # Calculate FPGA area
-    if not args.no_area_report:
-        logging.warning('=================')
-        logging.warning('Final Area Report')
-    circuit_fpga_area_list = list()
+    # Calculate FPGA QoR
+    logging.warning('=================')
+    logging.warning('Final Area Report')
+    circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
     for circuit_id, cc in sorted_dict_items(acc.circuits):
-        circuit_fpga_area = siv_heuristics.calculate_fpga_area_for_circuit(
+        circuit_fpga_qor = siv_heuristics.calculate_fpga_qor_for_circuit(
             ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=(not args.no_area_report))
-        circuit_fpga_area_list.append(circuit_fpga_area)
-    if not args.no_area_report:
-        logging.warning('=================')
+        circuit_fpga_qor_list.append(circuit_fpga_qor)
+    logging.warning('=================')
+
+    logging.warning(f'{siv_heuristics.CircuitQor.banner()}')
+    for qor in circuit_fpga_qor_list:
+        logging.warning(f'{qor.serialize()}')
 
     # Calculate FPGA area geomean
-    fpga_area_geomean = geomean_fpga_area(circuit_fpga_area_list)
+    fpga_area_geomean = geomean_fpga_area(
+        map(lambda qor: qor.fpga_area, circuit_fpga_qor_list))
     logging.warning(
-        f'Geometric Average Area for {len(circuit_fpga_area_list)} circuits: {fpga_area_geomean:.6E}')
+        f'Geometric Average Area for {len(circuit_fpga_qor_list)} circuits: {fpga_area_geomean:.6E}')

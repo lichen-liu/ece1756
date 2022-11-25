@@ -1,7 +1,7 @@
 from collections import Counter
 from dataclasses import dataclass, field
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import math
 
 from .mapping_config import CircuitConfig, LogicalRamConfig
@@ -16,15 +16,26 @@ from .siv_arch import RegularLogicBlockArch, SIVRamArch
 
 
 @dataclass
-class QoRCircuitSummary:
-    ram_type_count: List[int]
+class CircuitQor:
+    ram_type_count_list: List[int]
     regular_logic_block_count: int
     required_logic_block_count: int
     fpga_area: int
-    circuit_id: int = field(default_factory=0)
+    circuit_id: int = field(default_factory=lambda: -1)
+
+    def serialize(self) -> str:
+        seq = (self.circuit_id, *self.ram_type_count_list,
+               self.regular_logic_block_count, self.required_logic_block_count, self.fpga_area)
+        return '\t\t'.join(map(lambda x: str(x), seq))
+
+    @staticmethod
+    def banner(num_types: int = 3) -> str:
+        type_list = [('Type ' + str(idx+1)) for idx in range(num_types)]
+        seq = ('Circuit', *type_list, 'Blocks', 'Tiles', 'Area')
+        return '\t\t'.join(seq)
 
 
-def calculate_fpga_area(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], verbose: bool = False) -> int:
+def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], verbose: bool = False) -> CircuitQor:
     lb_arch = RegularLogicBlockArch()
 
     # Convert extra_lut_count + logic_block_count into regular_lb_used
@@ -69,40 +80,46 @@ def calculate_fpga_area(ram_archs: Dict[int, SIVRamArch], logic_block_count: int
     if verbose:
         logging.warning('FPGA Area:')
 
-    def calculate_block_area(arch: ArchProperty, total_lb_count: int) -> int:
+    def calculate_block_count_area(arch: ArchProperty, total_lb_count: int) -> Tuple[int, int]:
         chip_block_count = arch.get_block_count(total_lb_count)
         block_area = chip_block_count * arch.get_area()
         if verbose:
             logging.warning(
                 f'  {chip_block_count} {arch} has area of {block_area}')
-        return block_area
+        return (chip_block_count, block_area)
 
     fpga_area = 0
-    for arch in ram_archs.values():
-        fpga_area += calculate_block_area(arch, lb_required_on_chip)
-    fpga_area += calculate_block_area(lb_arch, lb_required_on_chip)
+    ram_type_count_list = list()
+    for _, arch in sorted_dict_items(ram_archs):
+        block_count, block_area = calculate_block_count_area(
+            arch, lb_required_on_chip)
+        fpga_area += block_area
+        ram_type_count_list.append(block_count)
+    fpga_area += calculate_block_count_area(lb_arch, lb_required_on_chip)[1]
 
     if verbose:
         logging.warning(f'FPGA area is {fpga_area}')
         logging.warning('-----END calculate_fpga_area END-----')
 
-    return fpga_area
+    return CircuitQor(ram_type_count_list=ram_type_count_list, regular_logic_block_count=regular_lb_used, required_logic_block_count=lb_required_on_chip, fpga_area=fpga_area)
 
 
-def calculate_fpga_area_for_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, verbose: bool = False) -> int:
+def calculate_fpga_qor_for_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, verbose: bool = False) -> CircuitQor:
     assert logical_circuit.circuit_id == circuit_config.circuit_id
     if verbose:
         logging.warning(f'| circuit_id={logical_circuit.circuit_id} |')
-    return calculate_fpga_area(
+    qor = calculate_fpga_qor(
         ram_archs=ram_archs,
         logic_block_count=logical_circuit.num_logic_blocks,
         extra_lut_count=circuit_config.get_extra_lut_count(),
         physical_ram_count=circuit_config.get_physical_ram_count(),
         verbose=verbose)
+    qor.circuit_id = logical_circuit.circuit_id
+    return qor
 
 
-def calculate_fpga_area_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, logical_ram_config: LogicalRamConfig, verbose: bool = False) -> int:
-    return calculate_fpga_area(
+def calculate_fpga_qor_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, logical_ram_config: LogicalRamConfig, verbose: bool = False) -> CircuitQor:
+    return calculate_fpga_qor(
         ram_archs=ram_archs,
         logic_block_count=logic_block_count,
         extra_lut_count=logical_ram_config.get_extra_lut_count(),
