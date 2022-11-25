@@ -54,8 +54,8 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
     # Find logic block required for aspect ratio of RAM type
     if verbose:
         logging.warning('Aspect Ratio:')
-    lb_required = regular_lb_used
-    num_lutram_block = 0
+    lb_required = 0
+    lutram_lb_used = 0
     for ram_arch_id, ram_count in sorted_dict_items(physical_ram_count):
         lb_to_ram_ratio = ram_archs[ram_arch_id].get_ratio_of_LB()
         min_lb_required = math.ceil(
@@ -65,13 +65,14 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
                 f'  {ram_count} {ram_archs[ram_arch_id]} requires {min_lb_required} LBs')
         lb_required = max(lb_required, min_lb_required)
         if ram_archs[ram_arch_id].get_ram_type() == RamType.LUTRAM:
-            num_lutram_block += ram_count
+            lutram_lb_used += ram_count
     if verbose:
+        logging.warning(f'LUTRAM LBs: {lutram_lb_used}')
         logging.warning(
             f'FPGA architecture needs at least {lb_required} LBs for aspect ratio')
 
     # Add LUTRAM to logic block required
-    lb_required_on_chip = lb_required + num_lutram_block
+    lb_required_on_chip = max(regular_lb_used + lutram_lb_used, lb_required)
     if verbose:
         logging.warning(
             f'FPGA architecture and logic circuit needs at least {lb_required_on_chip} LBs')
@@ -80,22 +81,21 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
     if verbose:
         logging.warning('FPGA Area:')
 
-    def calculate_block_count_area(arch: ArchProperty, total_lb_count: int) -> Tuple[int, int]:
+    def calculate_block_area(arch: ArchProperty, total_lb_count: int) -> int:
         chip_block_count = arch.get_block_count(total_lb_count)
         block_area = chip_block_count * arch.get_area()
         if verbose:
             logging.warning(
                 f'  {chip_block_count} {arch} has area of {block_area}')
-        return (chip_block_count, block_area)
+        return block_area
 
     fpga_area = 0
     ram_type_count_list = list()
-    for _, arch in sorted_dict_items(ram_archs):
-        block_count, block_area = calculate_block_count_area(
-            arch, lb_required_on_chip)
+    for arch_id, arch in sorted_dict_items(ram_archs):
+        block_area = calculate_block_area(arch, lb_required_on_chip)
         fpga_area += block_area
-        ram_type_count_list.append(block_count)
-    fpga_area += calculate_block_count_area(lb_arch, lb_required_on_chip)[1]
+        ram_type_count_list.append(physical_ram_count.get(arch_id, 0))
+    fpga_area += calculate_block_area(lb_arch, lb_required_on_chip)
 
     if verbose:
         logging.warning(f'FPGA area is {fpga_area}')
