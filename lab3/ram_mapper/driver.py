@@ -1,8 +1,8 @@
 import logging
+import os
 import statistics
 from typing import Iterable, List
 
-from .utils import init_logger, sorted_dict_items
 from . import utils
 from . import siv_heuristics
 from . import transform
@@ -34,21 +34,22 @@ def init(parser):
         action='count',
         default=0,
         help='Raise logging verbosity, default is Warning+')
+    parser.add_argument(
+        '--processes', '-j',
+        type=int,
+        default=os.cpu_count(),
+        help=f'The number of processes for parallelism, default is {os.cpu_count()}'
+    )
 
 
 def main(args):
+    utils.proccess_initializer(args)
+
+    logging.warning(f'{args}')
+
     with utils.elapsed_timer() as elapsed:
         run(args)
     logging.warning(f'Total elapsed {elapsed():.3f} seconds')
-
-
-def verbosity_to_logging_level(verbose_count: int) -> int:
-    if verbose_count == 0:
-        return logging.WARNING
-    elif verbose_count == 1:
-        return logging.INFO
-    else:
-        return logging.DEBUG
 
 
 def geomean_fpga_area(fpga_area_list: Iterable[int]) -> float:
@@ -63,10 +64,6 @@ def geomean_fpga_area(fpga_area_list: Iterable[int]) -> float:
 # python3 -m ram_mapper --lb=test0/logic_block_count.txt --lr=test0/logical_rams.txt --out=test0/mapping.txt
 
 def run(args):
-    # Logger setting for module execution mode
-    init_logger(verbosity_to_logging_level(args.verbose))
-
-    logging.warning(f'{args}')
     logic_block_count_filename = args.lb
     logical_rams_filename = args.lr
     mapping_filename = args.out
@@ -78,12 +75,12 @@ def run(args):
     # Arch input
     ram_archs = siv_arch.generate_default_ram_arch()
     logging.info('RAM Archs:')
-    for _, ram_arch in sorted_dict_items(ram_archs):
+    for _, ram_arch in utils.sorted_dict_items(ram_archs):
         logging.info(ram_arch)
 
     # Mapping output
     acc = transform.solve_all_circuits(
-        ram_archs=ram_archs, logical_circuits=lcs)
+        ram_archs=ram_archs, logical_circuits=lcs, args=args)
     assert len(acc.circuits) == len(
         lcs), 'Final mapping result must contain same number of circuits as logical_ram input'
     acc.serialize_to_file(mapping_filename)
@@ -94,7 +91,7 @@ def run(args):
         logging.warning('Final Area Report')
     print_report_circuit_for_all = -1 in args.report_circuit
     circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
-    for circuit_id, cc in sorted_dict_items(acc.circuits):
+    for circuit_id, cc in utils.sorted_dict_items(acc.circuits):
         circuit_fpga_qor = siv_heuristics.calculate_fpga_qor_for_circuit(
             ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=print_report_circuit_for_all or (circuit_id in args.report_circuit))
         circuit_fpga_qor_list.append(circuit_fpga_qor)

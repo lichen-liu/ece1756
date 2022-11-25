@@ -14,6 +14,20 @@ def init_logger(level=logging.DEBUG):
                         datefmt='%y%m%d:%H:%M:%S', level=level)
 
 
+def verbosity_to_logging_level(verbose_count: int) -> int:
+    if verbose_count == 0:
+        return logging.WARNING
+    elif verbose_count == 1:
+        return logging.INFO
+    else:
+        return logging.DEBUG
+
+
+def proccess_initializer(args):
+    # Logger setting for module execution mode
+    init_logger(verbosity_to_logging_level(args.verbose))
+
+
 @contextmanager
 def elapsed_timer():
     '''

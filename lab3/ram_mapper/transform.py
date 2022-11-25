@@ -5,22 +5,29 @@ import math
 import random
 from typing import Callable, Dict, Iterator, List, NamedTuple, Tuple
 
+
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
 
 from .logical_ram import LogicalRam, RamShape, RamShapeFit
-from .utils import T, sigmoid, sorted_dict_items
+from .utils import sorted_dict_items, proccess_initializer
 from .mapping_config import AllCircuitConfig, CircuitConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig
 from .logical_circuit import LogicalCircuit
-from .siv_arch import RegularLogicBlockArch, SIVRamArch, determine_extra_luts
+from .siv_arch import SIVRamArch, determine_extra_luts
+from multiprocessing import Pool
 
 
-def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[int, LogicalCircuit]) -> AllCircuitConfig:
-    acc = AllCircuitConfig()
+def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[int, LogicalCircuit], args) -> AllCircuitConfig:
     num_circuits = len(logical_circuits)
-    for circuit_id, lc in sorted_dict_items(logical_circuits):
-        logging.warning(f'Solving circuit {circuit_id} out of {num_circuits}')
-        acc.insert_circuit_config(solve_single_circuit(
-            ram_archs=ram_archs, logical_circuit=lc))
+    logging.warning(
+        f'Solving for {num_circuits} circuits using {args.processes} processes')
+
+    acc = AllCircuitConfig()
+    with Pool(processes=args.processes, initializer=proccess_initializer, initargs=(args,)) as p:
+        circuit_configs = p.starmap(solve_single_circuit, map(
+            lambda lc: (ram_archs, lc), logical_circuits.values()))
+        for circuit_config in circuit_configs:
+            acc.insert_circuit_config(cc=circuit_config)
+
     return acc
 
 
