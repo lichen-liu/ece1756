@@ -35,5 +35,5 @@
 221125:06:20:49.497 WARNING [driver.py] Total elapsed 4.881 seconds
 
 # v1 simulated annealing
-221125:06:57:28.364 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.186996E+08
-221125:06:57:28.368 WARNING [driver.py] Total elapsed 5.705 seconds
+221125:07:16:50.945 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.094673E+08
+221125:07:16:50.949 WARNING [driver.py] Total elapsed 130.498 seconds
