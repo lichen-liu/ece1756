@@ -16,7 +16,7 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
     acc = AllCircuitConfig()
     num_circuits = len(logical_circuits)
     for circuit_id, lc in sorted_dict_items(logical_circuits):
-        logging.info(f'Solving circuit {circuit_id} out of {num_circuits}')
+        logging.warning(f'Solving circuit {circuit_id} out of {num_circuits}')
         acc.insert_circuit_config(solve_single_circuit(
             ram_archs=ram_archs, logical_circuit=lc))
     return acc
@@ -164,7 +164,8 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         # Install new
         rc.lrc.prc = prc_new
-        area_new = self.calculate_fpga_area_fast(extra_lut_count=new_extra_lut_count)
+        area_new = self.calculate_fpga_area_fast(
+            extra_lut_count=new_extra_lut_count)
         # assert area_new == self.calculate_fpga_area()
 
         # If new is worse than old, revert
@@ -202,7 +203,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
             is_accepted = self.propose_evaluate_single_physical_ram_config()
             if is_accepted:
                 num_accepted += 1
-        logging.warning(
+        logging.info(
             f'{num_steps} finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
 
 
