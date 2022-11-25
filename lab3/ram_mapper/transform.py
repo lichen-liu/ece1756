@@ -150,40 +150,41 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         # Save old
         prc_old = rc.lrc.prc
+        # Get old area
         area_old = self._fpga_area
 
-        # Randomly pick a prc
-        prc_new = copy.deepcopy(self._rng.choice(
-            self.get_candidate_prc(logical_ram_id=logical_ram_id)))
-        prc_new.id = prc_old.id
+        # Randomly pick a new prc
+        prc_new = self._rng.choice(
+            self.get_candidate_prc(logical_ram_id=logical_ram_id))
 
+        # Calculate new area
         def extra_luts(prc: PhysicalRamConfig) -> int:
             return determine_extra_luts(num_series=prc.physical_shape_fit.num_series, logical_w=rc.lrc.logical_shape.width, ram_mode=prc.ram_mode)
-
         new_extra_lut_count = self._extra_lut_count - \
             extra_luts(prc_old) + extra_luts(prc_new)
         new_physical_ram_count = self._physical_ram_count - \
             prc_old.get_physical_ram_count() + prc_new.get_physical_ram_count()
-
-        # Install new
-        rc.lrc.prc = prc_new
         area_new = self.calculate_fpga_area_fast(
             extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
 
-        # If new is worse than old, revert
+        # If new is better than old, apply the change
         debug_str += f': area_new={area_new}, area_old={area_old}'
-        should_reject = area_new >= area_old
-        if should_reject:
-            debug_str += ' rejected'
-            rc.lrc.prc = prc_old
-        else:
+        should_accept = area_new < area_old
+        if should_accept:
+            # Install new
+            prc_new = copy.deepcopy(prc_new)
+            prc_new.id = prc_old.id
+            rc.lrc.prc = prc_new
+            # Update area
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
             debug_str += ' accepted'
+        else:
+            debug_str += ' rejected'
         logging.debug(f'{debug_str}')
 
-        return not should_reject
+        return should_accept
 
     def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
         return self._candidate_prc_list[logical_ram_id]

@@ -21,3 +21,7 @@
 # cache physical_ram_count
 221125:04:36:36.949 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:04:36:36.953 WARNING [driver.py] Total elapsed 10.459 seconds
+
+# only install new if new is accepted
+221125:04:43:53.370 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
+221125:04:43:53.374 WARNING [driver.py] Total elapsed 8.580 seconds
