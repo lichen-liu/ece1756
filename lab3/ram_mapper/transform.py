@@ -1,6 +1,7 @@
 from collections import Counter
 import copy
 import logging
+import math
 import random
 from typing import Callable, Dict, Iterator, List, Tuple
 
@@ -131,8 +132,9 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
 
-    def propose_evaluate_single_physical_ram_config(self) -> bool:
+    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int], bool]) -> bool:
         '''
+        should_accept_func(new-old)
         Return True if new prc is accepted; otherwise False
         '''
         rc = self._rng.choice(list(self.circuit_config().rams.values()))
@@ -159,7 +161,8 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         # If new is better than old, apply the change
         debug_str += f': area_new={area_new}, area_old={area_old}'
-        should_accept = area_new < area_old
+        area_delta = area_new - area_old
+        should_accept = should_accept_func(area_delta)
         if should_accept:
             # Install new
             prc_new = copy.deepcopy(prc_new)
@@ -193,8 +196,13 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
     def solve(self, num_steps: int):
         num_accepted = 0
         for step in range(num_steps):
+            temperature = 0
+
+            def should_accept(area_delta):
+                return area_delta < 0 or (temperature > 0 and self._rng.uniform(0, 1) < math.exp(-area_delta/temperature))
             logging.debug(f'- step={step} / {num_steps} -')
-            is_accepted = self.propose_evaluate_single_physical_ram_config()
+            is_accepted = self.propose_evaluate_single_physical_ram_config(
+                should_accept)
             if is_accepted:
                 num_accepted += 1
         logging.info(
