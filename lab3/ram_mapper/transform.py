@@ -137,7 +137,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
 
-    def purpose_evaluate_single_physical_ram_config(self) -> bool:
+    def propose_evaluate_single_physical_ram_config(self) -> bool:
         '''
         Return True if new prc is accepted; otherwise False
         '''
@@ -198,7 +198,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
         num_accepted = 0
         for step in range(num_steps):
             logging.debug(f'- step={step} / {num_steps} -')
-            is_accepted = self.purpose_evaluate_single_physical_ram_config()
+            is_accepted = self.propose_evaluate_single_physical_ram_config()
             if is_accepted:
                 num_accepted += 1
         logging.warning(
