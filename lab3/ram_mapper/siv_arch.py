@@ -23,17 +23,29 @@ class BlockRamArch(SIVRamArch):
         self._max_width_shape = max_width_shape
         self._ratio_of_LB = ratio_of_LB
 
+        self._shapes_for_modes = dict()
+        for mode in RamMode:
+            max_width = max_width_shape.width
+            mode_max_width = max_width - 1 if mode == RamMode.TrueDualPort else max_width
+            self._shapes_for_modes[mode] = [RamShape.from_size(
+                self.get_size(), w) for w in utils.all_pow2_below(mode_max_width)]
+
+        bits = max_width_shape.get_size()
+        max_width = max_width_shape.width
+        self._area = int(round(9000 + 5*bits + 90 *
+                         math.sqrt(bits) + 600*2*max_width))
+
+        self._supported_mode = RamMode.ROM | RamMode.SinglePort | RamMode.SimpleDualPort | RamMode.TrueDualPort
+
     def get_ram_type(self) -> RamType:
         return RamType.BLOCK_RAM
 
     def get_supported_mode(self) -> RamMode:
-        return RamMode.ROM | RamMode.SinglePort | RamMode.SimpleDualPort | RamMode.TrueDualPort
+        return self._supported_mode
 
     def get_shapes_for_mode(self, mode: RamMode) -> List[RamShape]:
         super().get_shapes_for_mode(mode)
-        max_width = self.get_max_width().width
-        mode_max_width = max_width - 1 if mode == RamMode.TrueDualPort else max_width
-        return [RamShape.from_size(self.get_size(), w) for w in utils.all_pow2_below(mode_max_width)]
+        return self._shapes_for_modes[mode]
 
     def get_max_width(self) -> RamShape:
         return self._max_width_shape
@@ -42,9 +54,7 @@ class BlockRamArch(SIVRamArch):
         return self._ratio_of_LB
 
     def get_area(self) -> int:
-        bits = self.get_size()
-        max_width = self.get_max_width().width
-        return int(round(9000 + 5*bits + 90 * math.sqrt(bits) + 600*2*max_width))
+        return self._area
 
 
 class LUTRamArch(SIVRamArch):

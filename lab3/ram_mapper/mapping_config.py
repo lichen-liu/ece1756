@@ -221,7 +221,7 @@ class PhysicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhy
         return RamShape(width=self.physical_shape_fit.num_parallel*self.physical_shape.width, depth=self.physical_shape_fit.num_series * self.physical_shape.depth)
 
     def get_physical_ram_count(self) -> Counter[int]:
-        return Counter({self.ram_arch_id: self.physical_shape_fit.num_parallel*self.physical_shape_fit.num_series})
+        return Counter({self.ram_arch_id: self.physical_shape_fit.get_count()})
 
     def get_ram_mode(self) -> RamMode:
         return self.ram_mode
@@ -253,7 +253,7 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCoun
         return c
 
     def get_extra_lut_count(self) -> int:
-        return sum(map(lambda ram_id_rc: ram_id_rc[1].get_extra_lut_count(), sorted_dict_items(self.rams)))
+        return sum(map(lambda rc: rc.get_extra_lut_count(), self.rams.values()))
 
 
 @dataclass

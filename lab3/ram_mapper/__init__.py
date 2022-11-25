@@ -1,9 +1,2 @@
-from ram_mapper import driver
-
-
-def init(parser):
-    driver.init(parser)
-
-
-def main(args):
-    driver.main(args)
+from ram_mapper.driver import init
+from ram_mapper.driver import main
