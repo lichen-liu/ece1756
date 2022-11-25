@@ -39,9 +39,7 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
     lb_arch = RegularLogicBlockArch()
 
     # Convert extra_lut_count + logic_block_count into regular_lb_used
-    lb_to_lut_ratio = lb_arch.get_ratio_to_LUT()
-    lb_for_extra_lut = math.ceil(
-        extra_lut_count * lb_to_lut_ratio[0] / lb_to_lut_ratio[1])
+    lb_for_extra_lut = lb_arch.get_block_count_from_luts(extra_lut_count)
     regular_lb_used = logic_block_count+lb_for_extra_lut
 
     if verbose:

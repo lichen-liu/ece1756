@@ -45,3 +45,7 @@
 # v3, abort duplicated move
 221125:13:28:09.733 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.113513E+08
 221125:13:28:09.738 WARNING [driver.py] Total elapsed 76.644 seconds
+
+# unify generate_candidate_prc_for_lr
+221125:16:52:28.495 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.108705E+08
+221125:16:52:28.500 WARNING [driver.py] Total elapsed 80.962 seconds

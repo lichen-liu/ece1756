@@ -106,6 +106,10 @@ class RegularLogicBlockArch(ArchProperty):
         '''
         return (1, 10)
 
+    def get_block_count_from_luts(self, lut_count: int) -> int:
+        lb_to_lut_ratio = self.get_ratio_to_LUT()
+        return math.ceil(lut_count * lb_to_lut_ratio[0] / lb_to_lut_ratio[1])
+
     def __str__(self):
         ratio_to_lut_str = str(self.get_ratio_to_LUT()).replace(' ', '')
         return f'RegularLogicBlock self:LUT{ratio_to_lut_str} {super().__str__()}'
