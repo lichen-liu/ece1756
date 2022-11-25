@@ -1,9 +1,10 @@
 from collections import Counter
 from enum import Enum, auto
+from itertools import starmap
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterator, List, NamedTuple, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Tuple
 
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
@@ -22,12 +23,18 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
         f'Solving for {num_circuits} circuits using {args.processes} processes')
 
     acc = AllCircuitConfig()
-    with Pool(processes=args.processes, initializer=proccess_initializer, initargs=(args,)) as p:
-        circuit_configs = p.starmap(solve_single_circuit, map(
+
+    def starmap_dispatcher(starmap_func):
+        circuit_configs = starmap_func(solve_single_circuit, map(
             lambda lc: (ram_archs, lc), logical_circuits.values()))
         for circuit_config in circuit_configs:
             acc.insert_circuit_config(cc=circuit_config)
 
+    if args.processes == 1:
+        starmap_dispatcher(starmap_func=starmap)
+    else:
+        with Pool(processes=args.processes, initializer=proccess_initializer, initargs=(args,)) as p:
+            starmap_dispatcher(starmap_func=p.starmap)
     return acc
 
 

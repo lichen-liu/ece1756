@@ -55,5 +55,5 @@
 221125:16:59:38.631 WARNING [driver.py] Total elapsed 75.394 seconds
 
 # multiprocessing
-221125:17:26:35.175 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.108705E+08
-221125:17:26:35.179 WARNING [driver.py] Total elapsed 16.532 seconds
+221125:17:38:28.383 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.108705E+08
+221125:17:38:28.387 WARNING [driver.py] Total elapsed 14.057 seconds
