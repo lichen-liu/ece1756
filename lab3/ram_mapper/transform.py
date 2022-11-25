@@ -1,9 +1,9 @@
 from collections import Counter
-import copy
+from enum import Enum, auto
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterator, List, NamedTuple, Tuple
+from typing import Callable, Dict, List, NamedTuple, Tuple
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
 
@@ -62,7 +62,8 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         else:
             # todo
             # current_temperature = step_fraction_left * step_fraction_left * initial_temperature
-            current_temperature = initial_temperature / (param.current_step + 1)
+            current_temperature = initial_temperature / \
+                (param.current_step + 1)
             # acceptance_ratio = param.acceptance_ratio()
             # if step_fraction >= acceptance_adjustment_starting_step_fraction:
             #     current_temperature *= 2 * \
@@ -71,7 +72,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
             return current_temperature
 
     solver.solve(num_steps=num_steps,
-                 temperature_schedule=temperature_schedule)
+                 temperature_schedule=temperature_schedule, stats=False)
     circuit_config = solver.circuit_config()
 
     # assert False
@@ -164,6 +165,16 @@ class TemperatureScheduleParam(NamedTuple):
         return 0 if self.current_step == 0 else self.num_accepted/self.current_step
 
 
+class MoveOutcome(Enum):
+    ACCEPTED_AREA = auto()
+    ACCEPTED_TEMPERATURE = auto()
+    REJECTED_AREA = auto()
+    ABORT_DUPLICATED = auto()
+
+    def is_accepted(self) -> bool:
+        return self == self.ACCEPTED_AREA or self == self.ACCEPTED_TEMPERATURE
+
+
 class AnnealingCircuitSolver(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int):
         super().__init__(ram_archs=ram_archs,
@@ -187,13 +198,12 @@ class AnnealingCircuitSolver(CircuitSolverBase):
     def get_search_space_size(self) -> int:
         return self._candidate_prc_size
 
-    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int, int], bool]) -> bool:
+    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int, int], bool]) -> MoveOutcome:
         '''
         should_accept_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
         '''
         rc = self._rng.choice(list(self.circuit_config().rams.values()))
-        debug_str = f'logical_ram={rc.ram_id}'
 
         # Save old
         prc_old = rc.lrc.prc
@@ -203,6 +213,8 @@ class AnnealingCircuitSolver(CircuitSolverBase):
         # Randomly pick a new prc
         prc_new = self._rng.choice(
             self.get_candidate_prc(logical_ram_id=rc.ram_id))
+        if prc_old is prc_new:
+            return MoveOutcome.ABORT_DUPLICATED
 
         # Calculate new area
         def extra_luts(prc: PhysicalRamConfig) -> int:
@@ -214,10 +226,7 @@ class AnnealingCircuitSolver(CircuitSolverBase):
         area_new = self.calculate_fpga_area_fast(
             extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
 
-        # If new is better than old, apply the change
-        debug_str += f': area_new={area_new}, area_old={area_old}'
-        should_accept = should_accept_func(area_new, area_old)
-        if should_accept:
+        def apply_move():
             # Install new
             prc_new.id = prc_old.id
             rc.lrc.prc = prc_new
@@ -225,12 +234,17 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
-            debug_str += ' accepted'
-        else:
-            debug_str += ' rejected'
-        logging.debug(f'{debug_str}')
 
-        return should_accept
+        # If new is better than old, apply the change
+        if area_new < area_old:
+            apply_move()
+            return MoveOutcome.ACCEPTED_AREA
+
+        if should_accept_func(area_new, area_old):
+            apply_move()
+            return MoveOutcome.ACCEPTED_TEMPERATURE
+
+        return MoveOutcome.REJECTED_AREA
 
     def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
         return self._candidate_prc_list[logical_ram_id]
@@ -246,7 +260,8 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
-    def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float]):
+    def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
+        outcome_stats = Counter()
         num_accepted = 0
         prev_temperature = -1
         for step in range(num_steps):
@@ -255,19 +270,24 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             temperature = temperature_schedule(t_schedule_param)
 
             def should_accept(new_area: int, old_area: int) -> bool:
-                delta_area = new_area - old_area
-                return delta_area < 0 or (temperature > 0 and self._rng.uniform(0, 1) < math.exp(-(delta_area/old_area)/temperature))
+                return temperature > 0 and self._rng.uniform(0, 1) < math.exp(-((new_area - old_area)/old_area)/temperature)
 
             logging.debug(
                 f'- step={step} (total={num_steps}) temperature={temperature} -')
-            is_accepted = self.propose_evaluate_single_physical_ram_config(
+            outcome = self.propose_evaluate_single_physical_ram_config(
                 should_accept)
-            if is_accepted:
+
+            # Book-keeping
+            if outcome.is_accepted():
                 num_accepted += 1
+            if stats:
+                outcome_stats[outcome] += 1
             prev_temperature = temperature
 
         logging.info(
             f'{num_steps} steps finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
+        if stats:
+            logging.info(f'    Stats {str(outcome_stats)}')
 
 
 class PerRamGreedyCircuitSolver(CircuitSolverBase):

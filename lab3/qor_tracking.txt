@@ -41,3 +41,7 @@
 # v2, remove deepcopy
 221125:13:19:04.645 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.111860E+08
 221125:13:19:04.650 WARNING [driver.py] Total elapsed 83.983 seconds
+
+# v3, abort duplicated move
+221125:13:28:09.733 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.113513E+08
+221125:13:28:09.738 WARNING [driver.py] Total elapsed 76.644 seconds
