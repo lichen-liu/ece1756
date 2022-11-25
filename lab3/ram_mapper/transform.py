@@ -164,7 +164,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         # Install new
         rc.lrc.prc = prc_new
-        area_new = self.estimate_fpga_area(extra_lut_count=new_extra_lut_count)
+        area_new = self.calculate_fpga_area_fast(extra_lut_count=new_extra_lut_count)
         # assert area_new == self.calculate_fpga_area()
 
         # If new is worse than old, revert
@@ -187,7 +187,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
     def calculate_fpga_area(self) -> int:
         return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
 
-    def estimate_fpga_area(self, extra_lut_count: int) -> int:
+    def calculate_fpga_area_fast(self, extra_lut_count: int) -> int:
         qor = calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,
