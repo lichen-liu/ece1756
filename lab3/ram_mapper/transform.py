@@ -152,7 +152,6 @@ class CircuitSolverBase:
 class TemperatureScheduleParam(NamedTuple):
     num_steps: int
     current_step: int
-    prev_temperature: float
     num_accepted: int
 
     def current_step_fraction(self) -> float:
@@ -256,17 +255,18 @@ class AnnealingCircuitSolver(CircuitSolverBase):
     def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
         outcome_stats = Counter()
         num_accepted = 0
-        prev_temperature = -1
         for step in range(num_steps):
             t_schedule_param = TemperatureScheduleParam(
-                num_steps=num_steps, current_step=step, prev_temperature=prev_temperature, num_accepted=num_accepted)
-            temperature = temperature_schedule(t_schedule_param)
+                num_steps=num_steps, current_step=step, num_accepted=num_accepted)
 
+            # Only executes when needed
             def should_accept(new_area: int, old_area: int) -> bool:
+                # Only computed when needed, temperature_schedule must not be dependening on previous states
+                temperature = temperature_schedule(t_schedule_param)
                 return temperature > 0 and self._rng.uniform(0, 1) < math.exp(-((new_area - old_area)/old_area)/temperature)
 
-            logging.debug(
-                f'- step={step} (total={num_steps}) temperature={temperature} -')
+            # logging.debug(
+            #     f'- step={step} (total={num_steps}) temperature={temperature_schedule(t_schedule_param)} -')
             outcome = self.propose_evaluate_single_physical_ram_config(
                 should_accept)
 
@@ -275,7 +275,6 @@ class AnnealingCircuitSolver(CircuitSolverBase):
                 num_accepted += 1
             if stats:
                 outcome_stats[outcome] += 1
-            prev_temperature = temperature
 
         logging.info(
             f'circuit {self.logical_circuit().circuit_id}: {num_steps} steps finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')

@@ -49,3 +49,7 @@
 # unify generate_candidate_prc_for_lr
 221125:16:52:28.495 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.108705E+08
 221125:16:52:28.500 WARNING [driver.py] Total elapsed 80.962 seconds
+
+# delayed temperature calculation
+221125:16:59:38.627 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.108705E+08
+221125:16:59:38.631 WARNING [driver.py] Total elapsed 75.394 seconds
