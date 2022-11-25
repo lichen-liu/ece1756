@@ -3,18 +3,20 @@ import logging
 import random
 from typing import Callable, Dict, List, Tuple
 
-from .siv_heuristics import calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
+from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
 
 from .logical_ram import LogicalRam, RamShape, RamShapeFit
 from .utils import T, sorted_dict_items
 from .mapping_config import AllCircuitConfig, CircuitConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig
 from .logical_circuit import LogicalCircuit
-from .siv_arch import SIVRamArch
+from .siv_arch import SIVRamArch, determine_extra_luts
 
 
 def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[int, LogicalCircuit]) -> AllCircuitConfig:
     acc = AllCircuitConfig()
-    for _, lc in sorted_dict_items(logical_circuits):
+    num_circuits = len(logical_circuits)
+    for circuit_id, lc in sorted_dict_items(logical_circuits):
+        logging.info(f'Solving circuit {circuit_id} out of {num_circuits}')
         acc.insert_circuit_config(solve_single_circuit(
             ram_archs=ram_archs, logical_circuit=lc))
     return acc
@@ -23,14 +25,20 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
 def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit) -> CircuitConfig:
     # Generate an initial config
     solver = PerRamGreedyCircuitSolver(
-        ram_archs=ram_archs, logical_circuit=logical_circuit)
+        ram_archs=ram_archs,
+        logical_circuit=logical_circuit)
     solver.solve()
     circuit_config = solver.circuit_config()
+    physical_ram_uid = solver.assign_physical_ram_uid()
 
     # Incrementally improving
     solver = AllRamGreedyCircuitSolver(
-        ram_archs=ram_archs, logical_circuit=logical_circuit, circuit_config=circuit_config, seed=circuit_config.circuit_id)
-
+        ram_archs=ram_archs,
+        logical_circuit=logical_circuit,
+        circuit_config=circuit_config,
+        seed=circuit_config.circuit_id,
+        physical_ram_uid=physical_ram_uid)
+    solver.solve(num_steps=1000)
     circuit_config = solver.circuit_config()
 
     return circuit_config
@@ -69,10 +77,10 @@ def get_wasted_bits(physical_shape: RamShape, fit: RamShapeFit, logical_shape: R
 
 
 class CircuitSolverBase:
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
         self._ram_archs = ram_archs
         self._logical_circuit = logical_circuit
-        self._physical_ram_uid = 0
+        self._physical_ram_uid = physical_ram_uid
         self._circuit_config = circuit_config
 
     def circuit_config(self) -> CircuitConfig:
@@ -118,28 +126,92 @@ class CircuitSolverBase:
 
 
 class AllRamGreedyCircuitSolver(CircuitSolverBase):
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int):
         super().__init__(ram_archs=ram_archs,
-                         logical_circuit=logical_circuit, circuit_config=circuit_config)
+                         logical_circuit=logical_circuit,
+                         circuit_config=circuit_config,
+                         physical_ram_uid=physical_ram_uid)
         self._rng = random.Random(seed)
+        self._candidate_prc_list = {logical_ram_id: self.find_candidate_physical_ram_config_list(
+            logical_ram=logical_ram, optimizer_funcs=[]) for logical_ram_id, logical_ram in sorted_dict_items(self.logical_circuit().rams)}
 
-    def permute_single_physical_ram_physical(self):
+        self._extra_lut_count = self.circuit_config().get_extra_lut_count()
+
+    def purpose_evaluate_single_physical_ram_config(self) -> bool:
+        '''
+        Return True if new prc is accepted; otherwise False
+        '''
         logical_ram_id, rc = self._rng.choice(
             list(sorted_dict_items(self.circuit_config().rams)))
-        logging.debug(f'logical_ram={logical_ram_id}')
+        debug_str = f'logical_ram={logical_ram_id}'
 
-        area_old = self.calculate_fpga_area(
-            circuit_config=self.circuit_config())
-        rc_old = copy.deep_copy(rc)
+        # Save old
+        prc_old = rc.lrc.prc
+        area_old = self.estimate_fpga_area(
+            extra_lut_count=self._extra_lut_count)
+        # assert area_old == self.calculate_fpga_area()
 
-    def calculate_fpga_area(self, circuit_config: CircuitConfig) -> int:
-        return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=circuit_config).fpga_area
+        # Randomly pick a prc
+        prc_new = copy.deepcopy(self._rng.choice(
+            self.get_candidate_prc(logical_ram_id=logical_ram_id)))
+        prc_new.id = prc_old.id
+
+        def extra_luts(prc: PhysicalRamConfig) -> int:
+            return determine_extra_luts(num_series=prc.physical_shape_fit.num_series, logical_w=rc.lrc.logical_shape.width, ram_mode=prc.ram_mode)
+
+        new_extra_lut_count = self._extra_lut_count - \
+            extra_luts(prc_old) + extra_luts(prc_new)
+
+        # Install new
+        rc.lrc.prc = prc_new
+        area_new = self.estimate_fpga_area(extra_lut_count=new_extra_lut_count)
+        # assert area_new == self.calculate_fpga_area()
+
+        # If new is worse than old, revert
+        debug_str += f': area_new={area_new}, area_old={area_old}'
+        should_reject = area_new >= area_old
+        if should_reject:
+            debug_str += ' rejected'
+            rc.lrc.prc = prc_old
+        else:
+            self._extra_lut_count = new_extra_lut_count
+            debug_str += ' accepted'
+        logging.debug(f'{debug_str}')
+
+        return not should_reject
+
+    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
+        return self._candidate_prc_list[logical_ram_id]
+
+    def calculate_fpga_area(self) -> int:
+        return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
+
+    def estimate_fpga_area(self, extra_lut_count: int) -> int:
+        qor = calculate_fpga_qor(
+            ram_archs=self.ram_archs(),
+            logic_block_count=self.logical_circuit().num_logic_blocks,
+            extra_lut_count=extra_lut_count,  # Doesn't matter
+            physical_ram_count=self.circuit_config().get_physical_ram_count())
+        return qor.fpga_area
+
+    def solve(self, num_steps: int):
+        num_accepted = 0
+        for step in range(num_steps):
+            logging.debug(f'- step={step} / {num_steps} -')
+            is_accepted = self.purpose_evaluate_single_physical_ram_config()
+            if is_accepted:
+                num_accepted += 1
+        logging.warning(
+            f'{num_steps} finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
 
 
 class PerRamGreedyCircuitSolver(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit):
-        super().__init__(ram_archs=ram_archs, logical_circuit=logical_circuit,
-                         circuit_config=CircuitConfig(circuit_id=logical_circuit.circuit_id))
+        super().__init__(ram_archs=ram_archs,
+                         logical_circuit=logical_circuit,
+                         circuit_config=CircuitConfig(
+                             circuit_id=logical_circuit.circuit_id),
+                         physical_ram_uid=0)
 
     def solve_single_ram(self, logical_ram: LogicalRam) -> RamConfig:
         def find_min_count(physical_shape, fit):
