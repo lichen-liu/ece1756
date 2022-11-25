@@ -40,7 +40,18 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         circuit_config=circuit_config,
         seed=circuit_config.circuit_id,
         physical_ram_uid=physical_ram_uid)
-    solver.solve(num_steps=1000)
+
+    initial_temperature = 0.0005
+    num_steps = 100000
+
+    def temperature_schedule(fraction: float) -> float:
+        # Ensure quenching
+        if fraction <= 0.01:
+            return 0
+        else:
+            return fraction * fraction * initial_temperature
+    solver.solve(num_steps=num_steps,
+                 temperature_schedule=temperature_schedule)
     circuit_config = solver.circuit_config()
 
     return circuit_config
@@ -132,9 +143,9 @@ class AnnealingCircuitSolver(CircuitSolverBase):
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
 
-    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int], bool]) -> bool:
+    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int, int], bool]) -> bool:
         '''
-        should_accept_func(new-old)
+        should_accept_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
         '''
         rc = self._rng.choice(list(self.circuit_config().rams.values()))
@@ -161,8 +172,7 @@ class AnnealingCircuitSolver(CircuitSolverBase):
 
         # If new is better than old, apply the change
         debug_str += f': area_new={area_new}, area_old={area_old}'
-        area_delta = area_new - area_old
-        should_accept = should_accept_func(area_delta)
+        should_accept = should_accept_func(area_new, area_old)
         if should_accept:
             # Install new
             prc_new = copy.deepcopy(prc_new)
@@ -193,14 +203,18 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
-    def solve(self, num_steps: int):
+    def solve(self, num_steps: int, temperature_schedule: Callable[[float], float]):
         num_accepted = 0
         for step in range(num_steps):
-            temperature = 0
+            fraction = 1 - (step + 1) / num_steps
+            temperature = temperature_schedule(fraction)
 
-            def should_accept(area_delta):
-                return area_delta < 0 or (temperature > 0 and self._rng.uniform(0, 1) < math.exp(-area_delta/temperature))
-            logging.debug(f'- step={step} / {num_steps} -')
+            def should_accept(new_area: int, old_area: int) -> bool:
+                delta_area = new_area - old_area
+                return delta_area < 0 or (temperature > 0 and self._rng.uniform(0, 1) < math.exp(-(delta_area/old_area)/temperature))
+
+            logging.debug(
+                f'- step={step} (total={num_steps}) temperature={temperature} -')
             is_accepted = self.propose_evaluate_single_physical_ram_config(
                 should_accept)
             if is_accepted:
