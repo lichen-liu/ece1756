@@ -1,6 +1,9 @@
 ## To Run
 ```bash
-python3 -m ram_mapper
+ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v
+```
+```bash
+python3 -m cProfile -s cumtime -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v
 ```
 
 ## To UNITTEST
