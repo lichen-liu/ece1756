@@ -1,3 +1,4 @@
+from collections import Counter
 import copy
 import logging
 import random
@@ -136,6 +137,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
             logical_ram=logical_ram, optimizer_funcs=[]) for logical_ram_id, logical_ram in sorted_dict_items(self.logical_circuit().rams)}
 
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
+        self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
 
     def propose_evaluate_single_physical_ram_config(self) -> bool:
@@ -161,11 +163,13 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         new_extra_lut_count = self._extra_lut_count - \
             extra_luts(prc_old) + extra_luts(prc_new)
+        new_physical_ram_count = self._physical_ram_count - \
+            prc_old.get_physical_ram_count() + prc_new.get_physical_ram_count()
 
         # Install new
         rc.lrc.prc = prc_new
         area_new = self.calculate_fpga_area_fast(
-            extra_lut_count=new_extra_lut_count)
+            extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
         # assert area_new == self.calculate_fpga_area()
 
         # If new is worse than old, revert
@@ -176,6 +180,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
             rc.lrc.prc = prc_old
         else:
             self._extra_lut_count = new_extra_lut_count
+            self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
             debug_str += ' accepted'
         logging.debug(f'{debug_str}')
@@ -188,12 +193,12 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
     def calculate_fpga_area(self) -> int:
         return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
 
-    def calculate_fpga_area_fast(self, extra_lut_count: int) -> int:
+    def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
         qor = calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,
-            extra_lut_count=extra_lut_count,  # Doesn't matter
-            physical_ram_count=self.circuit_config().get_physical_ram_count())
+            extra_lut_count=extra_lut_count,
+            physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
     def solve(self, num_steps: int):
