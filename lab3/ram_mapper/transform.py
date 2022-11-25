@@ -136,6 +136,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
             logical_ram=logical_ram, optimizer_funcs=[]) for logical_ram_id, logical_ram in sorted_dict_items(self.logical_circuit().rams)}
 
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
+        self._fpga_area = self.calculate_fpga_area()
 
     def propose_evaluate_single_physical_ram_config(self) -> bool:
         '''
@@ -147,8 +148,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
 
         # Save old
         prc_old = rc.lrc.prc
-        area_old = self.estimate_fpga_area(
-            extra_lut_count=self._extra_lut_count)
+        area_old = self._fpga_area
         # assert area_old == self.calculate_fpga_area()
 
         # Randomly pick a prc
@@ -175,6 +175,7 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
             rc.lrc.prc = prc_old
         else:
             self._extra_lut_count = new_extra_lut_count
+            self._fpga_area = area_new
             debug_str += ' accepted'
         logging.debug(f'{debug_str}')
 
