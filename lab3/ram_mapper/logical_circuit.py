@@ -5,7 +5,7 @@ from typing import Dict, Iterator, NamedTuple, Tuple
 
 from .utils import make_sorted_1d_dict
 
-from .logical_ram import LogicalRam, RamMode, read_grouped_LogicalRam_from_file
+from .logical_ram import LogicalRam, read_grouped_LogicalRam_from_file
 
 
 class LogicalCircuit(NamedTuple):
