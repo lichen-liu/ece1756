@@ -34,7 +34,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     physical_ram_uid = solver.assign_physical_ram_uid()
 
     # Incrementally improving
-    solver = AllRamGreedyCircuitSolver(
+    solver = AnnealingCircuitSolver(
         ram_archs=ram_archs,
         logical_circuit=logical_circuit,
         circuit_config=circuit_config,
@@ -118,7 +118,7 @@ class CircuitSolverBase:
         return candidate_prc_list
 
 
-class AllRamGreedyCircuitSolver(CircuitSolverBase):
+class AnnealingCircuitSolver(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
