@@ -151,7 +151,6 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
         # Save old
         prc_old = rc.lrc.prc
         area_old = self._fpga_area
-        # assert area_old == self.calculate_fpga_area()
 
         # Randomly pick a prc
         prc_new = copy.deepcopy(self._rng.choice(
@@ -170,7 +169,6 @@ class AllRamGreedyCircuitSolver(CircuitSolverBase):
         rc.lrc.prc = prc_new
         area_new = self.calculate_fpga_area_fast(
             extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
-        # assert area_new == self.calculate_fpga_area()
 
         # If new is worse than old, revert
         debug_str += f': area_new={area_new}, area_old={area_old}'

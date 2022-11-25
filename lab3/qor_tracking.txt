@@ -1,17 +1,23 @@
+# original
 221125:03:22:08.501 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:03:22:08.505 WARNING [driver.py] Total elapsed 132.602 seconds
 
+# using extra_luts=0
 221125:03:52:10.560 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.213522E+08
 221125:03:52:10.564 WARNING [driver.py] Total elapsed 92.242 seconds
 
+# using cached extra_luts
 221125:04:16:43.385 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:04:16:43.389 WARNING [driver.py] Total elapsed 93.596 seconds
 
+# cache new_fpga_area
 221125:04:20:55.156 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:04:20:55.160 WARNING [driver.py] Total elapsed 50.862 seconds
 
+# removed sorted_dict_items in CircuitConfig.get_physical_ram_count
 221125:04:28:38.786 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:04:28:38.790 WARNING [driver.py] Total elapsed 50.270 seconds
 
+# cache physical_ram_count
 221125:04:36:36.949 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:04:36:36.953 WARNING [driver.py] Total elapsed 10.459 seconds
