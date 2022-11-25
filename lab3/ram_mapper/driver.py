@@ -24,11 +24,11 @@ def init(parser):
         default='mapping.txt',
         help='Output mapping.txt')
     parser.add_argument(
-        '--circuit_report',
+        '--report_circuit',
         nargs='+',
         type=int,
         default=[],
-        help='Disable area report')
+        help='Report QoR for circuit(s), -1 to print all')
     parser.add_argument(
         '--verbose', '-v',
         action='count',
@@ -89,15 +89,16 @@ def run(args):
     acc.serialize_to_file(mapping_filename)
 
     # Calculate FPGA QoR
-    if len(args.circuit_report) > 0:
+    if len(args.report_circuit) > 0:
         logging.warning('=================')
         logging.warning('Final Area Report')
+    print_report_circuit_for_all = -1 in args.report_circuit
     circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
     for circuit_id, cc in sorted_dict_items(acc.circuits):
         circuit_fpga_qor = siv_heuristics.calculate_fpga_qor_for_circuit(
-            ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=circuit_id in args.circuit_report)
+            ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=print_report_circuit_for_all or (circuit_id in args.report_circuit))
         circuit_fpga_qor_list.append(circuit_fpga_qor)
-    if len(args.circuit_report) > 0:
+    if len(args.report_circuit) > 0:
         logging.warning('=================')
 
     logging.warning(f'{siv_heuristics.CircuitQor.banner()}')
