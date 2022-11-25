@@ -52,6 +52,10 @@ def all_pow2_below(x: int) -> List[int]:
     return all_pow2_below_helper(x, [])
 
 
+def sigmoid(x: float) -> float:
+    return 1 / (1 + math.exp(-x))
+
+
 T = TypeVar("T")
 
 

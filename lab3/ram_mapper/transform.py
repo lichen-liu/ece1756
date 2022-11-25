@@ -3,12 +3,12 @@ import copy
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterator, List, Tuple
+from typing import Callable, Dict, Iterator, List, NamedTuple, Tuple
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
 
 from .logical_ram import LogicalRam, RamShape, RamShapeFit
-from .utils import T, sorted_dict_items
+from .utils import T, sigmoid, sorted_dict_items
 from .mapping_config import AllCircuitConfig, CircuitConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig
 from .logical_circuit import LogicalCircuit
 from .siv_arch import SIVRamArch, determine_extra_luts
@@ -41,18 +41,40 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         seed=circuit_config.circuit_id,
         physical_ram_uid=physical_ram_uid)
 
-    initial_temperature = 0.0005
-    num_steps = 100000
+    initial_temperature = 1
+    exploration_factor = 10
+    # target_acceptance_ratio = 0.1
+    # acceptance_adjustment_starting_step_fraction = 1
+    quench_starting_step_fraction = 0.95
 
-    def temperature_schedule(fraction: float) -> float:
+    search_space_size = solver.get_search_space_size()
+    num_steps = search_space_size * exploration_factor
+    logging.info(
+        f'{num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
+
+    def temperature_schedule(param: TemperatureScheduleParam) -> float:
+        step_fraction = param.current_step_fraction()
+        step_fraction_left = 1 - step_fraction
         # Ensure quenching
-        if fraction <= 0.01:
+        if step_fraction >= quench_starting_step_fraction:
+            # logging.info(f'0')
             return 0
         else:
-            return fraction * fraction * initial_temperature
+            # todo
+            # current_temperature = step_fraction_left * step_fraction_left * initial_temperature
+            current_temperature = initial_temperature / (param.current_step + 1)
+            # acceptance_ratio = param.acceptance_ratio()
+            # if step_fraction >= acceptance_adjustment_starting_step_fraction:
+            #     current_temperature *= 2 * \
+            #         sigmoid(target_acceptance_ratio - acceptance_ratio)
+            # logging.info(f'{current_temperature}')
+            return current_temperature
+
     solver.solve(num_steps=num_steps,
                  temperature_schedule=temperature_schedule)
     circuit_config = solver.circuit_config()
+
+    # assert False
 
     return circuit_config
 
@@ -129,19 +151,41 @@ class CircuitSolverBase:
         return candidate_prc_list
 
 
+class TemperatureScheduleParam(NamedTuple):
+    num_steps: int
+    current_step: int
+    prev_temperature: float
+    num_accepted: int
+
+    def current_step_fraction(self) -> float:
+        return (self.current_step + 1) / self.num_steps
+
+    def acceptance_ratio(self) -> float:
+        return 0 if self.current_step == 0 else self.num_accepted/self.current_step
+
+
 class AnnealingCircuitSolver(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
                          physical_ram_uid=physical_ram_uid)
+        # RNG
         self._rng = random.Random(seed)
+
+        # Search space
         self._candidate_prc_list = {logical_ram.ram_id: self.find_candidate_physical_ram_config_list(
             logical_ram=logical_ram, optimizer_funcs=[]) for logical_ram in self.logical_circuit().rams.values()}
+        self._candidate_prc_size = sum(
+            map(lambda prc_list: len(prc_list), self._candidate_prc_list.values()))
 
+        # Area calculation
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
+
+    def get_search_space_size(self) -> int:
+        return self._candidate_prc_size
 
     def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int, int], bool]) -> bool:
         '''
@@ -175,7 +219,6 @@ class AnnealingCircuitSolver(CircuitSolverBase):
         should_accept = should_accept_func(area_new, area_old)
         if should_accept:
             # Install new
-            prc_new = copy.deepcopy(prc_new)
             prc_new.id = prc_old.id
             rc.lrc.prc = prc_new
             # Update area
@@ -203,11 +246,13 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
-    def solve(self, num_steps: int, temperature_schedule: Callable[[float], float]):
+    def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float]):
         num_accepted = 0
+        prev_temperature = -1
         for step in range(num_steps):
-            fraction = 1 - (step + 1) / num_steps
-            temperature = temperature_schedule(fraction)
+            t_schedule_param = TemperatureScheduleParam(
+                num_steps=num_steps, current_step=step, prev_temperature=prev_temperature, num_accepted=num_accepted)
+            temperature = temperature_schedule(t_schedule_param)
 
             def should_accept(new_area: int, old_area: int) -> bool:
                 delta_area = new_area - old_area
@@ -219,8 +264,10 @@ class AnnealingCircuitSolver(CircuitSolverBase):
                 should_accept)
             if is_accepted:
                 num_accepted += 1
+            prev_temperature = temperature
+
         logging.info(
-            f'{num_steps} finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
+            f'{num_steps} steps finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
 
 
 class PerRamGreedyCircuitSolver(CircuitSolverBase):
