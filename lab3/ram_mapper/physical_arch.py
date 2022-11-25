@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+import math
 from typing import List, Tuple
 from .logical_ram import RamMode, RamShape
 
@@ -20,6 +21,10 @@ class ArchProperty(ABC):
         Ratio of logic blocks to current block type
         '''
         pass
+
+    def get_block_count(self, LB_count: int) -> int:
+        lb_to_block_ratio = self.get_ratio_of_LB()
+        return math.floor(LB_count / lb_to_block_ratio[0] * lb_to_block_ratio[1])
 
     def __str__(self):
         ratio_of_lb_str = str(self.get_ratio_of_LB()).replace(' ', '')

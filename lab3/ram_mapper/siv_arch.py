@@ -86,6 +86,10 @@ class RegularLogicBlockArch(ArchProperty):
         '''
         return (2, 1)
 
+    def get_block_count(self, LB_count: int) -> int:
+        lb_to_block_ratio = self.get_ratio_of_LB()
+        return math.ceil(LB_count / lb_to_block_ratio[0] * lb_to_block_ratio[1])
+
     def get_ratio_to_LUT(self) -> Tuple[int, int]:
         '''
         ratio of logic block to lut

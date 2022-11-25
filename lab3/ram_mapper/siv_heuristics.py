@@ -1,4 +1,5 @@
 from collections import Counter
+from dataclasses import dataclass, field
 import logging
 from typing import Dict, List
 import math
@@ -7,11 +8,20 @@ from .mapping_config import CircuitConfig, LogicalRamConfig
 
 from .logical_circuit import LogicalCircuit
 
-from .physical_arch import RamType
+from .physical_arch import ArchProperty, RamType
 
 from .utils import sorted_dict_items
 
 from .siv_arch import RegularLogicBlockArch, SIVRamArch
+
+
+@dataclass
+class QoRCircuitSummary:
+    ram_type_count: List[int]
+    regular_logic_block_count: int
+    required_logic_block_count: int
+    fpga_area: int
+    circuit_id: int = field(default_factory=0)
 
 
 def calculate_fpga_area(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], verbose: bool = False) -> int:
@@ -58,16 +68,19 @@ def calculate_fpga_area(ram_archs: Dict[int, SIVRamArch], logic_block_count: int
     # Determine FPGA area
     if verbose:
         logging.warning('FPGA Area:')
-    fpga_area = 0
-    for arch in [lb_arch] + list(ram_archs.values()):
-        lb_to_block_ratio = arch.get_ratio_of_LB()
-        chip_block_count = math.floor(
-            lb_required_on_chip / lb_to_block_ratio[0] * lb_to_block_ratio[1])
+
+    def calculate_block_area(arch: ArchProperty, total_lb_count: int) -> int:
+        chip_block_count = arch.get_block_count(total_lb_count)
         block_area = chip_block_count * arch.get_area()
         if verbose:
             logging.warning(
                 f'  {chip_block_count} {arch} has area of {block_area}')
-        fpga_area += block_area
+        return block_area
+
+    fpga_area = 0
+    for arch in ram_archs.values():
+        fpga_area += calculate_block_area(arch, lb_required_on_chip)
+    fpga_area += calculate_block_area(lb_arch, lb_required_on_chip)
 
     if verbose:
         logging.warning(f'FPGA area is {fpga_area}')

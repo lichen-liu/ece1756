@@ -5852,7 +5852,7 @@
 // Circuit=10 Ram=112
 10 112 0 LW 16 LD 256 ID 112 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=10 Ram=113
-10 113 0 LW 64 LD 64 ID 113 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+10 113 0 LW 64 LD 64 ID 113 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=10 Ram=114
 10 114 0 LW 9 LD 64 ID 114 S 1 P 1 Type 1 Mode SimpleDualPort W 10 D 64
 // Circuit=10 Ram=115
@@ -5870,7 +5870,7 @@
 // Circuit=10 Ram=121
 10 121 0 LW 25 LD 32 ID 121 S 1 P 2 Type 1 Mode SimpleDualPort W 20 D 32
 // Circuit=10 Ram=122
-10 122 0 LW 64 LD 64 ID 122 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+10 122 0 LW 64 LD 64 ID 122 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=10 Ram=123
 10 123 0 LW 5 LD 16 ID 123 S 1 P 1 Type 1 Mode SimpleDualPort W 20 D 32
 // Circuit=10 Ram=124
@@ -6858,7 +6858,7 @@
 // Circuit=19 Ram=34
 19 34 0 LW 32 LD 64 ID 34 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=19 Ram=35
-19 35 0 LW 64 LD 64 ID 35 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+19 35 0 LW 64 LD 64 ID 35 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=19 Ram=36
 19 36 33 LW 32 LD 16384 ID 36 S 2 P 32 Type 2 Mode SimpleDualPort W 1 D 8192
 // Circuit=19 Ram=37
@@ -6934,7 +6934,7 @@
 // Circuit=19 Ram=72
 19 72 0 LW 36 LD 128 ID 72 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=19 Ram=73
-19 73 0 LW 64 LD 64 ID 73 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+19 73 0 LW 64 LD 64 ID 73 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=19 Ram=74
 19 74 0 LW 64 LD 128 ID 74 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=19 Ram=75
@@ -8882,7 +8882,7 @@
 // Circuit=26 Ram=71
 26 71 23 LW 20 LD 2056 ID 71 S 3 P 3 Type 2 Mode SimpleDualPort W 8 D 1024
 // Circuit=26 Ram=72
-26 72 0 LW 62 LD 64 ID 72 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+26 72 0 LW 62 LD 64 ID 72 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=26 Ram=73
 26 73 0 LW 62 LD 32 ID 73 S 1 P 4 Type 1 Mode SimpleDualPort W 20 D 32
 // Circuit=26 Ram=74
@@ -9020,7 +9020,7 @@
 // Circuit=28 Ram=60
 28 60 0 LW 32 LD 2048 ID 60 S 1 P 8 Type 2 Mode TrueDualPort W 4 D 2048
 // Circuit=28 Ram=61
-28 61 0 LW 64 LD 64 ID 61 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+28 61 0 LW 64 LD 64 ID 61 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=28 Ram=62
 28 62 0 LW 1 LD 16 ID 62 S 1 P 1 Type 1 Mode SimpleDualPort W 20 D 32
 // Circuit=28 Ram=63
@@ -9226,7 +9226,7 @@
 // Circuit=29 Ram=28
 29 28 0 LW 8 LD 64 ID 28 S 1 P 1 Type 1 Mode SimpleDualPort W 10 D 64
 // Circuit=29 Ram=29
-29 29 0 LW 64 LD 64 ID 29 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+29 29 0 LW 64 LD 64 ID 29 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=29 Ram=30
 29 30 0 LW 69 LD 256 ID 30 S 1 P 3 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=29 Ram=31
@@ -9234,7 +9234,7 @@
 // Circuit=29 Ram=32
 29 32 0 LW 37 LD 1024 ID 32 S 1 P 5 Type 2 Mode SimpleDualPort W 8 D 1024
 // Circuit=29 Ram=33
-29 33 0 LW 64 LD 64 ID 33 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+29 33 0 LW 64 LD 64 ID 33 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=29 Ram=34
 29 34 0 LW 20 LD 3 ID 34 S 1 P 1 Type 1 Mode SimpleDualPort W 20 D 32
 // Circuit=29 Ram=35
@@ -11430,7 +11430,7 @@
 // Circuit=36 Ram=224
 36 224 0 LW 16 LD 128 ID 224 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=36 Ram=225
-36 225 0 LW 64 LD 64 ID 225 S 1 P 7 Type 1 Mode SimpleDualPort W 10 D 64
+36 225 0 LW 64 LD 64 ID 225 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=36 Ram=226
 36 226 0 LW 16 LD 128 ID 226 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=36 Ram=227
