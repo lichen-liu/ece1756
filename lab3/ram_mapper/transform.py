@@ -71,12 +71,6 @@ def find_min_ram_shape_fit(candidate_physical_shapes: List[RamShape], target_log
         return []
 
 
-def get_wasted_bits(physical_shape: RamShape, fit: RamShapeFit, logical_shape: RamShape) -> int:
-    total_physical_shape = RamShape(
-        width=physical_shape.width*fit.num_parallel, depth=physical_shape.depth*fit.num_series)
-    return total_physical_shape.get_size() - logical_shape.get_size()
-
-
 class CircuitSolverBase:
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
         self._ram_archs = ram_archs
