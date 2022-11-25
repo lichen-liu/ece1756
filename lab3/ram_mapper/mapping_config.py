@@ -248,7 +248,7 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCoun
 
     def get_physical_ram_count(self) -> Counter[int]:
         c = Counter()
-        for _, ram in self.rams.items():
+        for ram in self.rams.values():
             c.update(ram.get_physical_ram_count())
         return c
 

@@ -66,7 +66,7 @@ def find_min_ram_shape_fit(candidate_physical_shapes: List[RamShape], target_log
         if len(key_funcs) == 0:
             return shape_fit_pairs
         else:
-            return [min(shape_fit_pairs, key=lambda shape_fit: key_func(*shape_fit)) for key_func in key_funcs]
+            return list(set(min(shape_fit_pairs, key=lambda shape_fit: key_func(*shape_fit)) for key_func in key_funcs))
     else:
         return []
 
@@ -99,17 +99,6 @@ class CircuitSolverBase:
         return assigned_value
 
     def find_candidate_physical_ram_config_list(self, logical_ram: LogicalRam, optimizer_funcs: List[Callable[[RamShape, RamShapeFit], T]]) -> List[PhysicalRamConfig]:
-        # Find candidates
-        candidate_ram_arch_id_and_physical_shape_list = list()
-        for ram_arch in self.ram_archs().values():
-            if logical_ram.mode not in ram_arch.get_supported_mode():
-                continue
-            physical_shapes = ram_arch.get_shapes_for_mode(logical_ram.mode)
-            candidate_physical_shape_fits = find_min_ram_shape_fit(
-                physical_shapes, logical_ram.shape, key_funcs=optimizer_funcs)
-            candidate_ram_arch_id_and_physical_shape_list.extend(
-                map(lambda psf: (ram_arch.get_id(), psf), candidate_physical_shape_fits))
-
         # Convert candidates into LogicalRamConfigs
         def convert_to_prc(ram_arch_id: int, physical_ram_shape: RamShape, physical_ram_shape_fit: RamShapeFit):
             prc = PhysicalRamConfig(
@@ -119,8 +108,17 @@ class CircuitSolverBase:
                 ram_mode=logical_ram.mode,
                 physical_shape=physical_ram_shape)
             return prc
-        candidate_prc_list = [convert_to_prc(ram_arch_id=ram_arch_id, physical_ram_shape=physical_shape_fit[0], physical_ram_shape_fit=physical_shape_fit[1])
-                              for ram_arch_id, physical_shape_fit in candidate_ram_arch_id_and_physical_shape_list]
+
+        # Find candidates
+        candidate_prc_list = list()
+        for ram_arch in self.ram_archs().values():
+            if logical_ram.mode not in ram_arch.get_supported_mode():
+                continue
+            physical_shapes = ram_arch.get_shapes_for_mode(logical_ram.mode)
+            candidate_physical_shape_fits = find_min_ram_shape_fit(
+                physical_shapes, logical_ram.shape, key_funcs=optimizer_funcs)
+            candidate_prc_list.extend(
+                map(lambda psf: convert_to_prc(ram_arch_id=ram_arch.get_id(), physical_ram_shape=psf[0], physical_ram_shape_fit=psf[1]), candidate_physical_shape_fits))
 
         return candidate_prc_list
 

@@ -29,3 +29,7 @@
 # various minor data structure-wise fixes
 221125:05:51:38.073 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
 221125:05:51:38.076 WARNING [driver.py] Total elapsed 5.939 seconds
+
+# reduce number of calculate_fpga_qor_for_ram_config calls 
+221125:06:20:49.494 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.207110E+08
+221125:06:20:49.497 WARNING [driver.py] Total elapsed 4.881 seconds
