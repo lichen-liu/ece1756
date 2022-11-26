@@ -1,9 +1,14 @@
-## To Run
+## To Run `ram_mapper`
 ```bash
-ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v
+python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v
 ```
 ```bash
 python3 -m cProfile -s cumtime -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v -j1
+```
+
+## To Run `checker`
+```bash
+./checker_mac -d logical_rams.txt logic_block_count.txt mapping.txt
 ```
 
 ## To UNITTEST
