@@ -274,11 +274,11 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
     def solve(self):
         # Hillclimb
         # -------param-------
-        exploration_factor = 30
-        max_outer_loop = 1
-        initial_temperature = 10
+        exploration_factor = 40
+        max_outer_loop = 20
+        initial_temperature = 50
         target_acceptance_ratio = 0.1
-        quench_starting_step_fraction = 1.1
+        quench_starting_step_fraction = 0.95
         # -------param-------
         search_space_size = self.get_search_space_size()
         num_steps = search_space_size * exploration_factor
@@ -338,7 +338,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
                 break
         logging.warning(
             f'circuit {self.logical_circuit().circuit_id} HC: ' +
-            f'{steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
+            f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'fina_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')

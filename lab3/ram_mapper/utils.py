@@ -10,8 +10,8 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple, Type, Type
 def init_logger(level=logging.DEBUG):
     # Line number : ":%(lineno)d"
     # TODO: set default to logging.INFO
-    logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)-6s [%(filename)s] %(message)s',
-                        datefmt='%y%m%d:%H:%M:%S', level=level)
+    logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)-8s [%(filename)s] %(message)s',
+                        datefmt='%m%d:%H:%M:%S', level=level)
 
 
 def verbosity_to_logging_level(verbose_count: int) -> int:
