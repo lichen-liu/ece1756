@@ -77,3 +77,7 @@
 # share extra write luts
 1126:06:45:17.232 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.077824E+08
 1126:06:45:17.237 WARNING [driver.py] Total elapsed 181.811 seconds
+
+# refactor annealer engine
+1126:07:26:03.030 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.077824E+08
+1126:07:26:03.035 WARNING [driver.py] Total elapsed 180.993 seconds
