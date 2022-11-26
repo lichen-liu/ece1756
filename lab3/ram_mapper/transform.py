@@ -63,7 +63,9 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     solver.solve()
     circuit_config = solver.circuit_config()
 
-    # assert False
+    # Experimental
+    if True:
+        pass
 
     return circuit_config
 
@@ -339,7 +341,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         logging.warning(
             f'circuit {self.logical_circuit().circuit_id} HC: ' +
             f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'fina_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
+            f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
