@@ -12,7 +12,7 @@ from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, 
 
 from .logical_ram import LogicalRam, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
-from .mapping_config import AllCircuitConfig, CircuitConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig
+from .mapping_config import AllCircuitConfig, CircuitConfig, CombinedLogicalRamConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig, RamSplitDimension
 from .logical_circuit import LogicalCircuit
 from .siv_arch import SIVRamArch, determine_extra_luts
 from multiprocessing import Pool
@@ -71,7 +71,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         circuit_config=circuit_config,
         physical_ram_uid=physical_ram_uid,
     )
-    # solver.solve()
+    solver.solve()
     circuit_config = solver.circuit_config()
 
     return circuit_config
@@ -142,11 +142,68 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
-                         physical_ram_uid=physical_ram_uid
-                         )
+                         physical_ram_uid=physical_ram_uid)
+
+    def split_rc_by_width(self, rc: RamConfig):
+        '''
+        Split the RC by width using the same physical config except for num_parallel=1,
+        will have no impact on area, thus using it as initial solution
+        '''
+        old_prc = rc.lrc.prc
+        old_prc_fit = old_prc.physical_shape_fit
+        assert old_prc_fit.num_parallel >= 2
+        old_logical_shape = rc.lrc.logical_shape
+
+        l_prc_fit = RamShapeFit(
+            num_series=old_prc_fit.num_series,
+            num_parallel=old_prc_fit.num_parallel-1)
+        l_prc = PhysicalRamConfig(
+            id=old_prc.id,
+            physical_shape_fit=l_prc_fit,
+            ram_arch_id=old_prc.ram_arch_id,
+            ram_mode=old_prc.ram_mode,
+            physical_shape=old_prc.physical_shape)
+        l_logical_shape = RamShape(
+            width=l_prc_fit.num_parallel*l_prc.physical_shape.width,
+            depth=old_logical_shape.depth)
+        l_lrc = LogicalRamConfig(logical_shape=l_logical_shape, prc=l_prc)
+
+        # Splitted Cliff
+        r_prc_fit = RamShapeFit(
+            num_series=old_prc_fit.num_series,
+            num_parallel=1)
+        r_prc = PhysicalRamConfig(
+            id=self.assign_physical_ram_uid(),
+            physical_shape_fit=r_prc_fit,
+            ram_arch_id=old_prc.ram_arch_id,
+            ram_mode=old_prc.ram_mode,
+            physical_shape=old_prc.physical_shape)
+        r_logical_shape = RamShape(
+            width=old_logical_shape.width-l_logical_shape.width,
+            depth=old_logical_shape.depth)
+        r_lrc = LogicalRamConfig(logical_shape=r_logical_shape, prc=r_prc)
+
+        clrc = CombinedLogicalRamConfig(
+            split=RamSplitDimension.parallel,
+            lrc_l=l_lrc,
+            lrc_r=r_lrc)
+        lrc = LogicalRamConfig(logical_shape=old_logical_shape, clrc=clrc)
+        # Install
+        rc.lrc = lrc
 
     def solve(self):
-        num_rams_to_split = 0
+        split_width_list, split_depth_list = self.find_cliff()
+        for rc in split_width_list:
+            self.split_rc_by_width(rc)
+        logging.warning(
+            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(split_width_list)} RAMs in width dimension (in parallel)')
+
+    def find_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
+        '''
+        (to_split_width, to_split_depth)
+        '''
+        split_width_list = list()
+        split_depth_list = list()
         for ram_id, rc in sorted_dict_items(self.circuit_config().rams):
             prc = rc.lrc.prc
             if prc.physical_shape_fit.get_count() == 1:
@@ -165,25 +222,26 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
             if not (can_reduce_width or can_reduce_depth):
                 continue
 
-            logging.warning(f'RAM {ram_id} {rc.serialize(0)}')
-            logging.warning(f'    physical:{prc.physical_shape} ' +
-                            f'total_physical:{total_physical_shape}, ' +
-                            f'logical:{logical_shape}, ' +
-                            f'wasted:{wasted_bits}, ' +
-                            f'extra_width:{extra_width}, extra_depth:{extra_depth}')
-            logging.warning(
-                f'    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
+            if verbose:
+                logging.info(f'RAM {ram_id} {rc.serialize(0)}')
+                logging.info(f'    physical:{prc.physical_shape} ' +
+                             f'total_physical:{total_physical_shape}, ' +
+                             f'logical:{logical_shape}, ' +
+                             f'wasted:{wasted_bits}, ' +
+                             f'extra_width:{extra_width}, extra_depth:{extra_depth}')
+                logging.info(
+                    f'    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
 
-            should_split_width = can_reduce_width
-            should_split_depth = not should_split_width
-            logging.warning(
-                f'    should_split_width={should_split_width}, should_split_depth={should_split_depth}')
+            if can_reduce_width:
+                if verbose:
+                    logging.info('    Should split width')
+                split_width_list.append(rc)
+            else:
+                if verbose:
+                    logging.info('    Should split depth')
+                split_depth_list.append(rc)
 
-            num_rams_to_split += 1
-
-        total_rams = len(self.circuit_config().rams)
-        logging.warning(
-            f'{num_rams_to_split} out of {total_rams} RAMs can be splitted')
+        return (split_width_list, split_depth_list)
 
 
 class TemperatureScheduleParam(NamedTuple):
@@ -388,7 +446,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
                     f'circuit {self.logical_circuit().circuit_id} HC: ' +
-                    f'extends {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
+                    f'extended {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
             else:
@@ -418,7 +476,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         search_space_size = self.get_search_space_size()
         steps_performed = convergence_loop_counter * search_space_size
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} Q Converged: ' +
+            f'circuit {self.logical_circuit().circuit_id} Q: converged, ' +
             f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
 
