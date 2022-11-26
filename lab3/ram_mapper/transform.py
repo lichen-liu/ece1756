@@ -60,11 +60,11 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         physical_ram_uid=physical_ram_uid,
         prc_candidates=prc_candidates)
 
-    initial_temperature = 1
-    exploration_factor = 10
+    initial_temperature = 10
+    exploration_factor = 30
     # target_acceptance_ratio = 0.1
     # acceptance_adjustment_starting_step_fraction = 1
-    quench_starting_step_fraction = 0.95
+    quench_starting_step_fraction = 1.1
 
     search_space_size = solver.get_search_space_size()
     num_steps = search_space_size * exploration_factor
@@ -73,7 +73,12 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
 
     def temperature_schedule(param: TemperatureScheduleParam) -> float:
         step_fraction = param.current_step_fraction()
-        step_fraction_left = 1 - step_fraction
+        current_step = param.current_step
+
+        # if step_fraction >= 0.5:
+        #     step_fraction = (step_fraction - 0.5) * 2
+        #     current_step = step_fraction * param.num_steps
+
         # Ensure quenching
         if step_fraction >= quench_starting_step_fraction:
             # logging.info(f'0')
@@ -81,14 +86,13 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         else:
             # todo
             # current_temperature = step_fraction_left * step_fraction_left * initial_temperature
-            current_temperature = initial_temperature / \
-                (param.current_step + 1)
+            temp = initial_temperature / (current_step + 1)
             # acceptance_ratio = param.acceptance_ratio()
             # if step_fraction >= acceptance_adjustment_starting_step_fraction:
             #     current_temperature *= 2 * \
             #         sigmoid(target_acceptance_ratio - acceptance_ratio)
-            # logging.info(f'{current_temperature}')
-            return current_temperature
+            # logging.info(f'{temp}')
+            return temp
 
     solver.solve(num_steps=num_steps,
                  temperature_schedule=temperature_schedule, stats=False)
@@ -203,13 +207,14 @@ class AnnealingCircuitSolver(CircuitSolverBase):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
+        self._best_fpga_area = self._fpga_area
 
     def get_search_space_size(self) -> int:
         return self._candidate_prc_size
 
-    def propose_evaluate_single_physical_ram_config(self, should_accept_func: Callable[[int, int], bool]) -> MoveOutcome:
+    def propose_evaluate_single_prc(self, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
         '''
-        should_accept_func(new_area,old_area)
+        should_accept_worse_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
         '''
         rc = self._rng.choice(list(self.circuit_config().rams.values()))
@@ -243,13 +248,14 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
+            self._best_fpga_area = min(self._best_fpga_area, self._fpga_area)
 
         # If new is better than old, apply the change
         if area_new < area_old:
             apply_move()
             return MoveOutcome.ACCEPTED_AREA
 
-        if should_accept_func(area_new, area_old):
+        if should_accept_worse_func(area_new, area_old):
             apply_move()
             return MoveOutcome.ACCEPTED_TEMPERATURE
 
@@ -269,29 +275,44 @@ class AnnealingCircuitSolver(CircuitSolverBase):
     def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
         outcome_stats = Counter()
         num_accepted = 0
-        for step in range(num_steps):
-            t_schedule_param = TemperatureScheduleParam(
-                num_steps=num_steps, current_step=step, num_accepted=num_accepted)
+        steps_performed = 0
+        total_steps_to_perform = 0
+        
+        target_acceptance_ratio = 0.1
+        max_outer_loop = 1
 
-            # Only executes when needed
-            def should_accept(new_area: int, old_area: int) -> bool:
-                # Only computed when needed, temperature_schedule must not be dependening on previous states
-                temperature = temperature_schedule(t_schedule_param)
-                return temperature > 0 and self._rng.uniform(0, 1) < math.exp(-((new_area - old_area)/old_area)/temperature)
+        for _ in range(max_outer_loop):
+            total_steps_to_perform += num_steps
+            for _ in range(num_steps):
+                # Only executes when needed
+                def should_accept_worse(new_area: int, old_area: int) -> bool:
+                    # Only computed when needed, temperature_schedule must not be dependening on previous states
+                    temperature = temperature_schedule(
+                        TemperatureScheduleParam(num_steps=total_steps_to_perform, current_step=steps_performed, num_accepted=num_accepted))
+                    return temperature > 0 and self._rng.uniform(0, 1) < math.exp(-((new_area - old_area)/old_area)/temperature)
 
-            # logging.debug(
-            #     f'- step={step} (total={num_steps}) temperature={temperature_schedule(t_schedule_param)} -')
-            outcome = self.propose_evaluate_single_physical_ram_config(
-                should_accept)
+                outcome = self.propose_evaluate_single_prc(should_accept_worse)
 
-            # Book-keeping
-            if outcome.is_accepted():
-                num_accepted += 1
-            if stats:
-                outcome_stats[outcome] += 1
+                # Book-keeping
+                if outcome.is_accepted():
+                    num_accepted += 1
+                if stats:
+                    outcome_stats[outcome] += 1
+                steps_performed += 1
 
-        logging.info(
-            f'circuit {self.logical_circuit().circuit_id}: {num_steps} steps finished, {num_accepted} accepted ({num_accepted/num_steps*100:.2f}%)')
+            current_acceptance_ratio = num_accepted/steps_performed
+            if current_acceptance_ratio > target_acceptance_ratio:
+                logging.info(
+                    f'circuit {self.logical_circuit().circuit_id}: ' +
+                    f'extends {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
+                    f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
+                    f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
+            else:
+                break
+        logging.warning(
+            f'circuit {self.logical_circuit().circuit_id}: ' +
+            f'{steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
+            f'final_fpga_area={self._fpga_area} best_fpga_area={self._best_fpga_area} (Match={self._fpga_area==self._best_fpga_area})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
