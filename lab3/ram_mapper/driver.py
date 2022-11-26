@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 import statistics
@@ -40,6 +41,12 @@ def init(parser):
         default=os.cpu_count(),
         help=f'The number of processes for parallelism, default is {os.cpu_count()}'
     )
+    parser.add_argument(
+        '--circuits', '-c',
+        type=int,
+        default=None,
+        help='The max number of circuits to process, default is all'
+    )
 
 
 def main(args):
@@ -71,6 +78,11 @@ def run(args):
     # Logical input
     lcs = logical_circuit.read_LogicalCircuit_from_file(
         logicblock_filename=logic_block_count_filename, loigicalram_filename=logical_rams_filename)
+
+    if args.circuits is not None and args.circuits < len(lcs):
+        assert args.circuits > 0
+        lcs = dict(itertools.islice(
+            utils.sorted_dict_items(lcs), args.circuits))
 
     # Arch input
     ram_archs = siv_arch.generate_default_ram_arch()
