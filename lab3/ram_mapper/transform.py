@@ -250,7 +250,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
 
         return MoveOutcome.REJECTED_AREA
 
-    def random_single_prc_move(self, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
+    def try_random_single_prc_move(self, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
         '''
         should_accept_worse_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
@@ -320,7 +320,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
                         TemperatureScheduleParam(num_steps=total_steps_to_perform, current_step=steps_performed, num_accepted=num_accepted))
                     return temperature > 0 and self._rng.uniform(0, 1) < math.exp(-((new_area - old_area)/old_area)/temperature)
 
-                outcome = self.random_single_prc_move(should_accept_worse)
+                outcome = self.try_random_single_prc_move(should_accept_worse)
 
                 # Book-keeping
                 if outcome.is_accepted():
