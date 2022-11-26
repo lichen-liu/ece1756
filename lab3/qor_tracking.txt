@@ -69,3 +69,7 @@
 # parameter tuning
 1126:01:13:30.906 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.077824E+08
 1126:01:13:30.910 WARNING [driver.py] Total elapsed 179.759 seconds
+
+# split cliff
+1126:05:50:13.332 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.078378E+08
+1126:05:50:13.337 WARNING [driver.py] Total elapsed 175.923 seconds

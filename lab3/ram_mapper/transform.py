@@ -402,7 +402,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         num_steps = search_space_size * exploration_factor
 
         logging.info(
-            f'circuit {self.logical_circuit().circuit_id} HC: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
+            f'circuit {self.logical_circuit().circuit_id} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
 
         def temperature_schedule(param: TemperatureScheduleParam) -> float:
             step_fraction = param.current_step_fraction()
@@ -448,14 +448,14 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id} HC: ' +
+                    f'circuit {self.logical_circuit().circuit_id} ANNEAL: ' +
                     f'extended {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
             else:
                 break
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} HC: ' +
+            f'circuit {self.logical_circuit().circuit_id} ANNEAL: ' +
             f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
@@ -479,7 +479,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         search_space_size = self.get_search_space_size()
         steps_performed = convergence_loop_counter * search_space_size
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} Q: converged, ' +
+            f'circuit {self.logical_circuit().circuit_id} GREEDY: converged, ' +
             f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
 
