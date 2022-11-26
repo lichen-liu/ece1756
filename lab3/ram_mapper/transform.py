@@ -294,15 +294,15 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
             else:
                 return initial_temperature / (current_step + 1)
 
-        self.hillclimb(num_steps=num_steps,
-                       target_acceptance_ratio=target_acceptance_ratio,
-                       max_outer_loop=max_outer_loop,
-                       temperature_schedule=temperature_schedule,
-                       stats=False)
+        self.anneal(num_steps=num_steps,
+                    target_acceptance_ratio=target_acceptance_ratio,
+                    max_outer_loop=max_outer_loop,
+                    temperature_schedule=temperature_schedule,
+                    stats=False)
 
-        self.quench()
+        self.greedy()
 
-    def hillclimb(self, num_steps: int, target_acceptance_ratio: float, max_outer_loop: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
+    def anneal(self, num_steps: int, target_acceptance_ratio: float, max_outer_loop: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
         outcome_stats = Counter()
         num_accepted = 0
         steps_performed = 0
@@ -343,7 +343,7 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
-    def quench(self):
+    def greedy(self):
         is_converged = False
         convergence_loop_counter = 0
         num_accepted = 0
