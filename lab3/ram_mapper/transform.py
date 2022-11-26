@@ -223,22 +223,25 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                 continue
 
             if verbose:
-                logging.info(f'RAM {ram_id} {rc.serialize(0)}')
-                logging.info(f'    physical:{prc.physical_shape} ' +
+                logging.info(
+                    f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: RAM {ram_id} {rc.serialize(0)}')
+                logging.info(f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    physical:{prc.physical_shape} ' +
                              f'total_physical:{total_physical_shape}, ' +
                              f'logical:{logical_shape}, ' +
                              f'wasted:{wasted_bits}, ' +
                              f'extra_width:{extra_width}, extra_depth:{extra_depth}')
                 logging.info(
-                    f'    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
+                    f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
 
             if can_reduce_width:
                 if verbose:
-                    logging.info('    Should split width')
+                    logging.info(
+                        f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    Should split width')
                 split_width_list.append(rc)
             else:
                 if verbose:
-                    logging.info('    Should split depth')
+                    logging.info(
+                        'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    Should split depth')
                 split_depth_list.append(rc)
 
         return (split_width_list, split_depth_list)
