@@ -1,4 +1,5 @@
 from collections import Counter
+import copy
 from enum import Enum, auto
 from itertools import starmap
 import logging
@@ -43,7 +44,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         ram_archs=ram_archs, logical_circuit=logical_circuit)
 
     # Generate an initial config
-    solver = PerRamGreedyCircuitSolver(
+    solver = SingleLevelCircuitInitialSolution(
         ram_archs=ram_archs,
         logical_circuit=logical_circuit,
         prc_candidates=prc_candidates)
@@ -52,50 +53,14 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     physical_ram_uid = solver.assign_physical_ram_uid()
 
     # Incrementally improving
-    solver = AnnealingCircuitSolver(
+    solver = SingleLevelCircuitOptimizer(
         ram_archs=ram_archs,
         logical_circuit=logical_circuit,
         circuit_config=circuit_config,
         seed=circuit_config.circuit_id,
         physical_ram_uid=physical_ram_uid,
         prc_candidates=prc_candidates)
-
-    initial_temperature = 10
-    exploration_factor = 30
-    # target_acceptance_ratio = 0.1
-    # acceptance_adjustment_starting_step_fraction = 1
-    quench_starting_step_fraction = 1.1
-
-    search_space_size = solver.get_search_space_size()
-    num_steps = search_space_size * exploration_factor
-    logging.info(
-        f'circuit {logical_circuit.circuit_id}: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
-
-    def temperature_schedule(param: TemperatureScheduleParam) -> float:
-        step_fraction = param.current_step_fraction()
-        current_step = param.current_step
-
-        # if step_fraction >= 0.5:
-        #     step_fraction = (step_fraction - 0.5) * 2
-        #     current_step = step_fraction * param.num_steps
-
-        # Ensure quenching
-        if step_fraction >= quench_starting_step_fraction:
-            # logging.info(f'0')
-            return 0
-        else:
-            # todo
-            # current_temperature = step_fraction_left * step_fraction_left * initial_temperature
-            temp = initial_temperature / (current_step + 1)
-            # acceptance_ratio = param.acceptance_ratio()
-            # if step_fraction >= acceptance_adjustment_starting_step_fraction:
-            #     current_temperature *= 2 * \
-            #         sigmoid(target_acceptance_ratio - acceptance_ratio)
-            # logging.info(f'{temp}')
-            return temp
-
-    solver.solve(num_steps=num_steps,
-                 temperature_schedule=temperature_schedule, stats=False)
+    solver.solve()
     circuit_config = solver.circuit_config()
 
     # assert False
@@ -189,7 +154,7 @@ class MoveOutcome(Enum):
         return self == self.ACCEPTED_AREA or self == self.ACCEPTED_TEMPERATURE
 
 
-class AnnealingCircuitSolver(CircuitSolverBase):
+class SingleLevelCircuitOptimizer(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int, prc_candidates: Dict[int, List[PhysicalRamConfig]]):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
@@ -204,30 +169,47 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             map(lambda prc_list: len(prc_list), prc_candidates.values()))
 
         # Area calculation
+        self.prepare_area_calculation_cache()
+        # Save the best copy
+        self._enable_save_best = False
+        self._best_fpga_area_saved = self._fpga_area
+        if self._enable_save_best:
+            self._best_circuit_config_saved = copy.deepcopy(
+                self.circuit_config())
+
+    def prepare_area_calculation_cache(self):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_fpga_area()
-        self._best_fpga_area = self._fpga_area
+
+    def switch_to_best_circuit_config(self):
+        assert self._enable_save_best
+        if self._best_fpga_area_saved < self._fpga_area:
+            self._circuit_config = self._best_circuit_config_saved
+            self.prepare_area_calculation_cache()
 
     def get_search_space_size(self) -> int:
         return self._candidate_prc_size
 
-    def propose_evaluate_single_prc(self, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
+    def select_rc_to_move(self) -> RamConfig:
+        return self._rng.choice(list(self.circuit_config().rams.values()))
+
+    def propose_move(self, rc: RamConfig) -> PhysicalRamConfig:
+        # Randomly pick a new prc
+        return self._rng.choice(
+            self.get_candidate_prc(logical_ram_id=rc.ram_id))
+
+    def evaluate_apply_move(self, rc: RamConfig, prc_new: PhysicalRamConfig, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
         '''
         should_accept_worse_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
         '''
-        rc = self._rng.choice(list(self.circuit_config().rams.values()))
-
         # Save old
         prc_old = rc.lrc.prc
         # Get old area
         area_old = self._fpga_area
 
-        # Randomly pick a new prc
-        prc_new = self._rng.choice(
-            self.get_candidate_prc(logical_ram_id=rc.ram_id))
-        if prc_old is prc_new:
+        if prc_old == prc_new:
             return MoveOutcome.ABORT_DUPLICATED
 
         # Calculate new area
@@ -248,7 +230,12 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
-            self._best_fpga_area = min(self._best_fpga_area, self._fpga_area)
+            # Save the best circuit config
+            if self._fpga_area < self._best_fpga_area_saved:
+                self._best_fpga_area_saved = self._fpga_area
+                if self._enable_save_best:
+                    self._best_circuit_config_saved = copy.deepcopy(
+                        self.circuit_config())
 
         # If new is better than old, apply the change
         if area_new < area_old:
@@ -261,6 +248,18 @@ class AnnealingCircuitSolver(CircuitSolverBase):
 
         return MoveOutcome.REJECTED_AREA
 
+    def propose_evaluate_single_prc(self, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
+        '''
+        should_accept_worse_func(new_area,old_area)
+        Return True if new prc is accepted; otherwise False
+        '''
+        rc = self.select_rc_to_move()
+
+        # Randomly pick a new prc
+        prc_new = self.propose_move(rc=rc)
+
+        return self.evaluate_apply_move(rc=rc, prc_new=prc_new, should_accept_worse_func=should_accept_worse_func)
+
     def calculate_fpga_area(self) -> int:
         return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
 
@@ -272,14 +271,40 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
-    def solve(self, num_steps: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
+    def solve(self):
+        # Hillclimb
+        # -------param-------
+        exploration_factor = 30
+        max_outer_loop = 1
+        initial_temperature = 10
+        target_acceptance_ratio = 0.1
+        quench_starting_step_fraction = 1.1
+        # -------param-------
+        search_space_size = self.get_search_space_size()
+        num_steps = search_space_size * exploration_factor
+
+        logging.info(
+            f'circuit {self.logical_circuit().circuit_id} HC: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
+
+        def temperature_schedule(param: TemperatureScheduleParam) -> float:
+            step_fraction = param.current_step_fraction()
+            current_step = param.current_step
+            if step_fraction >= quench_starting_step_fraction:
+                return 0
+            else:
+                return initial_temperature / (current_step + 1)
+
+        self.hillclimb(num_steps=num_steps,
+                       target_acceptance_ratio=target_acceptance_ratio,
+                       max_outer_loop=max_outer_loop,
+                       temperature_schedule=temperature_schedule,
+                       stats=False)
+
+    def hillclimb(self, num_steps: int, target_acceptance_ratio: float, max_outer_loop: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
         outcome_stats = Counter()
         num_accepted = 0
         steps_performed = 0
         total_steps_to_perform = 0
-        
-        target_acceptance_ratio = 0.1
-        max_outer_loop = 1
 
         for _ in range(max_outer_loop):
             total_steps_to_perform += num_steps
@@ -303,21 +328,21 @@ class AnnealingCircuitSolver(CircuitSolverBase):
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id}: ' +
+                    f'circuit {self.logical_circuit().circuit_id} HC: ' +
                     f'extends {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
             else:
                 break
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id}: ' +
+            f'circuit {self.logical_circuit().circuit_id} HC: ' +
             f'{steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'final_fpga_area={self._fpga_area} best_fpga_area={self._best_fpga_area} (Match={self._fpga_area==self._best_fpga_area})')
+            f'final area={self._fpga_area} best area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
 
-class PerRamGreedyCircuitSolver(CircuitSolverBase):
+class SingleLevelCircuitInitialSolution(CircuitSolverBase):
     def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, prc_candidates: Dict[int, List[PhysicalRamConfig]]):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
