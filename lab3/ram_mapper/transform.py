@@ -62,10 +62,17 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         prc_candidates=prc_candidates)
     solver.solve()
     circuit_config = solver.circuit_config()
+    physical_ram_uid = solver.assign_physical_ram_uid()
 
-    # Experimental
-    if True:
-        pass
+    # Optimize and split RAM
+    solver = SingleLevelSplitRamCircuitOptimizer(
+        ram_archs=ram_archs,
+        logical_circuit=logical_circuit,
+        circuit_config=circuit_config,
+        physical_ram_uid=physical_ram_uid,
+    )
+    # solver.solve()
+    circuit_config = solver.circuit_config()
 
     return circuit_config
 
@@ -109,15 +116,11 @@ def generate_candidate_prc_for_lc(ram_archs: Dict[int, SIVRamArch], logical_circ
 
 
 class CircuitSolverBase:
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int, prc_candidates: Dict[int, List[PhysicalRamConfig]]):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
         self._ram_archs = ram_archs
         self._logical_circuit = logical_circuit
         self._physical_ram_uid = physical_ram_uid
         self._circuit_config = circuit_config
-        self._prc_candidates = prc_candidates
-
-    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
-        return self._prc_candidates[logical_ram_id]
 
     def circuit_config(self) -> CircuitConfig:
         return self._circuit_config
@@ -132,6 +135,55 @@ class CircuitSolverBase:
         assigned_value = self._physical_ram_uid
         self._physical_ram_uid += 1
         return assigned_value
+
+
+class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
+        super().__init__(ram_archs=ram_archs,
+                         logical_circuit=logical_circuit,
+                         circuit_config=circuit_config,
+                         physical_ram_uid=physical_ram_uid
+                         )
+
+    def solve(self):
+        num_rams_to_split = 0
+        for ram_id, rc in sorted_dict_items(self.circuit_config().rams):
+            prc = rc.lrc.prc
+            if prc.physical_shape_fit.get_count() == 1:
+                continue
+            total_physical_shape = RamShape(
+                width=prc.physical_shape.width*prc.physical_shape_fit.num_parallel,
+                depth=prc.physical_shape.depth*prc.physical_shape_fit.num_series)
+            logical_shape = rc.lrc.logical_shape
+            wasted_bits = total_physical_shape.get_size() - logical_shape.get_size()
+
+            extra_width = total_physical_shape.width - logical_shape.width
+            extra_depth = total_physical_shape.depth - logical_shape.depth
+
+            can_reduce_width = extra_width > 0 and prc.physical_shape_fit.num_parallel > 1
+            can_reduce_depth = extra_depth > 0 and prc.physical_shape_fit.num_series > 1
+            if not (can_reduce_width or can_reduce_depth):
+                continue
+
+            logging.warning(f'RAM {ram_id} {rc.serialize(0)}')
+            logging.warning(f'    physical:{prc.physical_shape} ' +
+                            f'total_physical:{total_physical_shape}, ' +
+                            f'logical:{logical_shape}, ' +
+                            f'wasted:{wasted_bits}, ' +
+                            f'extra_width:{extra_width}, extra_depth:{extra_depth}')
+            logging.warning(
+                f'    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
+
+            should_split_width = can_reduce_width
+            should_split_depth = not should_split_width
+            logging.warning(
+                f'    should_split_width={should_split_width}, should_split_depth={should_split_depth}')
+
+            num_rams_to_split += 1
+
+        total_rams = len(self.circuit_config().rams)
+        logging.warning(
+            f'{num_rams_to_split} out of {total_rams} RAMs can be splitted')
 
 
 class TemperatureScheduleParam(NamedTuple):
@@ -161,12 +213,12 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
-                         physical_ram_uid=physical_ram_uid,
-                         prc_candidates=prc_candidates)
+                         physical_ram_uid=physical_ram_uid)
         # RNG
         self._rng = random.Random(seed)
 
         # Search space
+        self._prc_candidates = prc_candidates
         self._candidate_prc_size = sum(
             map(lambda prc_list: len(prc_list), prc_candidates.values()))
 
@@ -178,6 +230,9 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         if self._enable_save_best:
             self._best_circuit_config_saved = copy.deepcopy(
                 self.circuit_config())
+
+    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
+        return self._prc_candidates[logical_ram_id]
 
     def prepare_area_calculation_cache(self):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
@@ -374,8 +429,12 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
                          logical_circuit=logical_circuit,
                          circuit_config=CircuitConfig(
                              circuit_id=logical_circuit.circuit_id),
-                         physical_ram_uid=0,
-                         prc_candidates=prc_candidates)
+                         physical_ram_uid=0)
+        # Search space
+        self._prc_candidates = prc_candidates
+
+    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
+        return self._prc_candidates[logical_ram_id]
 
     def solve_single_ram(self, logical_ram: LogicalRam) -> RamConfig:
         candidate_lrc_list = map(lambda prc: LogicalRamConfig(
