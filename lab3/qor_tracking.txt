@@ -61,3 +61,7 @@
 # random improvement
 221125:22:50:10.593 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.099360E+08
 221125:22:50:10.598 WARNING [driver.py] Total elapsed 40.378 seconds
+
+# quenching phase
+221126:00:44:00.891 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.096391E+08
+221126:00:44:00.895 WARNING [driver.py] Total elapsed 41.987 seconds

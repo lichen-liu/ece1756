@@ -300,6 +300,8 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
                        temperature_schedule=temperature_schedule,
                        stats=False)
 
+        self.quench()
+
     def hillclimb(self, num_steps: int, target_acceptance_ratio: float, max_outer_loop: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
         outcome_stats = Counter()
         num_accepted = 0
@@ -337,9 +339,31 @@ class SingleLevelCircuitOptimizer(CircuitSolverBase):
         logging.warning(
             f'circuit {self.logical_circuit().circuit_id} HC: ' +
             f'{steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'final area={self._fpga_area} best area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
+            f'fina_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
+
+    def quench(self):
+        is_converged = False
+        convergence_loop_counter = 0
+        num_accepted = 0
+        while not is_converged:
+            is_converged = True
+            for _, rc in sorted_dict_items(self.circuit_config().rams):
+                for prc_new in self.get_candidate_prc(logical_ram_id=rc.ram_id):
+                    outcome = self.evaluate_apply_move(
+                        rc=rc, prc_new=prc_new, should_accept_worse_func=lambda _a, _b: False)
+                    if outcome.is_accepted():
+                        is_converged = False
+                        num_accepted += 1
+            convergence_loop_counter += 1
+
+        search_space_size = self.get_search_space_size()
+        steps_performed = convergence_loop_counter * search_space_size
+        logging.warning(
+            f'circuit {self.logical_circuit().circuit_id} Q Converged: ' +
+            f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
+            f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
 
 
 class SingleLevelCircuitInitialSolution(CircuitSolverBase):
