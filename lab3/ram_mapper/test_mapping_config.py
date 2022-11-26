@@ -141,6 +141,38 @@ class MappingConfigTestCase(unittest.TestCase):
         rc = self.generate_3level_RamConfig()
         self.assertEqual(rc.get_ram_mode(), RamMode.SinglePort)
 
+    def test_RamConfig_share_write_decoder_lut_count(self):
+        rc_expected_str = '''0 416 22 LW 21 LD 72 parallel
+    LW 20 LD 72 ID 416 S 2 P 2 Type 1 Mode SimpleDualPort W 10 D 64
+    LW 1 LD 72 ID 721 S 2 P 1 Type 1 Mode SimpleDualPort W 10 D 64'''
+        lrc_l = LogicalRamConfig(
+            logical_shape=RamShape(width=20, depth=72),
+            prc=PhysicalRamConfig(
+                id=416,
+                physical_shape_fit=RamShapeFit(num_series=2, num_parallel=2),
+                ram_arch_id=1,
+                ram_mode=RamMode.SimpleDualPort,
+                physical_shape=RamShape(width=10, depth=64)))
+        lrc_r = LogicalRamConfig(
+            logical_shape=RamShape(width=1, depth=72),
+            prc=PhysicalRamConfig(
+                id=721,
+                physical_shape_fit=RamShapeFit(num_series=2, num_parallel=1),
+                ram_arch_id=1,
+                ram_mode=RamMode.SimpleDualPort,
+                physical_shape=RamShape(width=10, depth=64)))
+        rc = RamConfig(
+            circuit_id=0,
+            ram_id=416,
+            lrc=LogicalRamConfig(
+                logical_shape=RamShape(width=21, depth=72),
+                clrc=CombinedLogicalRamConfig(
+                    split=RamSplitDimension.parallel,
+                    lrc_l=lrc_l,
+                    lrc_r=lrc_r)))
+        self.assertEqual(rc.serialize(0), rc_expected_str)
+        self.assertEqual(rc.get_extra_lut_count(), 22)
+
     @staticmethod
     def generate_2_3_level_CircuitConfig() -> CircuitConfig:
         cc = CircuitConfig(circuit_id=3)

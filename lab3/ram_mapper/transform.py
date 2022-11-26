@@ -188,7 +188,10 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
             lrc_l=l_lrc,
             lrc_r=r_lrc)
         lrc = LogicalRamConfig(logical_shape=old_logical_shape, clrc=clrc)
+        
         # Install
+        # assert rc.lrc.get_extra_lut_count() == lrc.get_extra_lut_count()
+        # assert rc.lrc.get_physical_ram_count() == lrc.get_physical_ram_count()
         rc.lrc = lrc
 
     def solve(self):

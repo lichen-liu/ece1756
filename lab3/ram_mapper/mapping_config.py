@@ -9,7 +9,7 @@ from typing import Dict, Iterator, Optional
 from .physical_arch import RamShape
 from .utils import Result, sorted_dict_items
 from .logical_ram import RamMode, RamShapeFit
-from .siv_arch import determine_extra_luts
+from .siv_arch import accumulate_extra_luts, determine_extra_luts, determine_write_decoder_luts
 
 
 class ConfigVerifier(ABC):
@@ -126,6 +126,12 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
     def get_shape(self) -> RamShape:
         return self.logical_shape
 
+    def get_immediate_num_series(self) -> Optional[int]:
+        if self.prc is not None:
+            return self.prc.physical_shape_fit.num_series
+        else:
+            return None
+
     def get_extra_lut_count(self) -> int:
         if self.prc is not None:
             return determine_extra_luts(num_series=self.prc.physical_shape_fit.num_series,
@@ -137,6 +143,16 @@ class LogicalRamConfig(ConfigVerifier, ConfigSerializer, ConfigShape, ConfigPhys
             if self.clrc.split == RamSplitDimension.series:
                 clrc_extra_luts = determine_extra_luts(
                     num_series=2, logical_w=self.logical_shape.width, ram_mode=self.get_ram_mode())
+            else:
+                # Remove the duplicated count of the write luts if they can be shared
+                lrc_l_immediate_num_series = self.clrc.lrc_l.get_immediate_num_series()
+                lrc_r_immediate_num_series = self.clrc.lrc_r.get_immediate_num_series()
+                if lrc_l_immediate_num_series is not None and lrc_r_immediate_num_series is not None:
+                    if lrc_l_immediate_num_series == lrc_r_immediate_num_series:
+                        write_luts = determine_write_decoder_luts(
+                            r=lrc_l_immediate_num_series)
+                        clrc_extra_luts = -accumulate_extra_luts(
+                            write_luts=write_luts, read_luts=0, ram_mode=self.get_ram_mode())
             return lrc_l_extra_luts + lrc_r_extra_luts + clrc_extra_luts
 
     def get_physical_ram_count(self) -> Counter[int]:

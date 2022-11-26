@@ -172,7 +172,9 @@ def determine_write_decoder_luts(r: int) -> int:
     '''
     r - r physical RAMs in serial
     '''
-    assert r > 1
+    assert r > 0
+    if r == 1:
+        return 0
     return 1 if r == 2 else r
 
 
@@ -203,7 +205,7 @@ def determine_read_mux_luts(r: int, logical_w: int) -> int:
     return logical_w*determine_read_mux_luts_per_bit(r)
 
 
-def determine_extra_luts(num_series: int, logical_w: int, ram_mode: RamMode):
+def determine_extra_luts(num_series: int, logical_w: int, ram_mode: RamMode) -> int:
     '''
     num_series - r physical RAMs in serial
     logical_w - the width of the logical RAM
@@ -217,6 +219,10 @@ def determine_extra_luts(num_series: int, logical_w: int, ram_mode: RamMode):
 
     write_luts = determine_write_decoder_luts(r=num_series)
     read_luts = determine_read_mux_luts(r=num_series, logical_w=logical_w)
+    return accumulate_extra_luts(write_luts=write_luts, read_luts=read_luts, ram_mode=ram_mode)
+
+
+def accumulate_extra_luts(write_luts: int, read_luts: int, ram_mode: RamMode) -> int:
     if ram_mode == RamMode.ROM:
         # r
         return read_luts

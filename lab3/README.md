@@ -8,7 +8,7 @@ python3 -m cProfile -s cumtime -m ram_mapper --lb=logic_block_count.txt --lr=log
 
 ## To Run `checker`
 ```bash
-./checker_mac -d logical_rams.txt logic_block_count.txt mapping.txt
+./checker_mac -t -d logical_rams.txt logic_block_count.txt mapping.txt
 ```
 
 ## To UNITTEST
