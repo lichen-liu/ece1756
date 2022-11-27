@@ -445,7 +445,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         # Calculate new area
         def extra_luts(prc: PhysicalRamConfig) -> int:
-            return determine_extra_luts(num_series=prc.physical_shape_fit.num_series, logical_w=rc.lrc.logical_shape.width, ram_mode=prc.ram_mode)
+            return determine_extra_luts(num_series=prc.physical_shape_fit.num_series, logical_w=rc.lrc.logical_shape.width, ram_mode=rc.ram_mode)
         new_extra_lut_count = self._extra_lut_count - \
             extra_luts(prc_old) + extra_luts(prc_new)
         new_physical_ram_count = self._physical_ram_count - \
