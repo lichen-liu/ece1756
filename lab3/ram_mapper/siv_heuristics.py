@@ -111,15 +111,18 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
     return CircuitQor(ram_type_count_list=ram_type_count_list, regular_logic_block_count=regular_lb_used, required_logic_block_count=lb_required_on_chip, fpga_area=fpga_area)
 
 
-def calculate_fpga_qor_for_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, skip_area: bool = False, verbose: bool = False) -> CircuitQor:
+def calculate_fpga_qor_for_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, allow_sharing: bool, skip_area: bool = False, verbose: bool = False) -> CircuitQor:
     assert logical_circuit.circuit_id == circuit_config.circuit_id
     if verbose:
         logging.warning(f'| circuit_id={logical_circuit.circuit_id} |')
+
+    physical_ram_count = circuit_config.get_unique_physical_ram_count(
+    ) if allow_sharing else circuit_config.get_physical_ram_count()
     qor = calculate_fpga_qor(
         ram_archs=ram_archs,
         logic_block_count=logical_circuit.num_logic_blocks,
         extra_lut_count=circuit_config.get_extra_lut_count(),
-        physical_ram_count=circuit_config.get_physical_ram_count(),
+        physical_ram_count=physical_ram_count,
         skip_area=skip_area,
         verbose=verbose)
     qor.circuit_id = logical_circuit.circuit_id

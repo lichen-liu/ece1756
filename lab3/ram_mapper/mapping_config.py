@@ -227,6 +227,17 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCoun
             c.update(ram.get_physical_ram_count())
         return c
 
+    def get_unique_physical_ram_count(self) -> Counter[int]:
+        uid_prc_dict: Dict[int, PhysicalRamConfig] = dict()
+
+        def visitor(lrc: LogicalRamConfig):
+            uid_prc_dict[lrc.prc.id] = lrc.prc
+        self.execute_on_leaf(visitor)
+        c = Counter()
+        for prc in uid_prc_dict.values():
+            c.update(prc.get_physical_ram_count())
+        return c
+
     def get_extra_lut_count(self) -> int:
         return sum(map(lambda rc: rc.get_extra_lut_count(), self.rams.values()))
 

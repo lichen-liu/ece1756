@@ -105,7 +105,12 @@ def run(args):
     circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
     for circuit_id, cc in utils.sorted_dict_items(acc.circuits):
         circuit_fpga_qor = siv_heuristics.calculate_fpga_qor_for_circuit(
-            ram_archs=ram_archs, logical_circuit=lcs[circuit_id], circuit_config=cc, verbose=print_report_circuit_for_all or (circuit_id in args.report_circuit))
+            ram_archs=ram_archs,
+            logical_circuit=lcs[circuit_id],
+            circuit_config=cc,
+            allow_sharing=True,
+            skip_area=False,
+            verbose=print_report_circuit_for_all or (circuit_id in args.report_circuit))
         circuit_fpga_qor_list.append(circuit_fpga_qor)
     if len(args.report_circuit) > 0:
         logging.warning('=================')

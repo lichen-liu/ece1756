@@ -101,3 +101,7 @@
 # Minor
 1127:04:58:59.092 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
 1127:04:58:59.097 WARNING [driver.py] Total elapsed 413.542 seconds
+
+# Ram sharing
+1127:18:56:13.786 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.063683E+08
+1127:18:56:13.792 WARNING [driver.py] Total elapsed 534.719 seconds

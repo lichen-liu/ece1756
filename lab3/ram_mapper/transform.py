@@ -6,7 +6,7 @@ from itertools import starmap
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
 
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
@@ -15,7 +15,7 @@ from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
 from .mapping_config import AllCircuitConfig, CircuitConfig, CombinedLogicalRamConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig, RamSplitDimension
 from .logical_circuit import LogicalCircuit
-from .siv_arch import SIVRamArch, determine_extra_luts
+from .siv_arch import RegularLogicBlockArch, SIVRamArch, determine_extra_luts
 from multiprocessing import Pool
 
 
@@ -111,11 +111,17 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
             enable_save_best=True)
         solver.solve(effort_factor=1.0)
         circuit_config = solver.circuit_config()
-        # physical_ram_uid = solver.assign_physical_ram_uid()
+        physical_ram_uid = solver.assign_physical_ram_uid()
 
-    if False:
-        for ram_id, rc in sorted_dict_items(circuit_config.rams):
-            pass
+    # Share physical ram
+    solver = SharingCircuitOptimizer(
+        ram_archs=ram_archs,
+        logical_circuit=logical_circuit,
+        circuit_config=circuit_config,
+        physical_ram_uid=physical_ram_uid)
+    solver.solve()
+    circuit_config = solver.circuit_config()
+    # physical_ram_uid = solver.assign_physical_ram_uid()
 
     return circuit_config
 
@@ -202,11 +208,13 @@ def generate_candidate_prc_for_rcs(ram_archs: Dict[int, SIVRamArch], ram_configs
 
 
 class CircuitSolverBase:
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int, name: str):
         self._ram_archs = ram_archs
         self._logical_circuit = logical_circuit
         self._physical_ram_uid = physical_ram_uid
         self._circuit_config = circuit_config
+        self._lb_arch = RegularLogicBlockArch()
+        self._name = name
 
     def circuit_config(self) -> CircuitConfig:
         return self._circuit_config
@@ -217,10 +225,19 @@ class CircuitSolverBase:
     def ram_archs(self) -> Dict[int, SIVRamArch]:
         return self._ram_archs
 
+    def ram_arch(self, ram_arch_id: int) -> SIVRamArch:
+        return self._ram_archs[ram_arch_id]
+
+    def lb_arch(self) -> RegularLogicBlockArch:
+        return self._lb_arch
+
     def assign_physical_ram_uid(self) -> int:
         assigned_value = self._physical_ram_uid
         self._physical_ram_uid += 1
         return assigned_value
+
+    def msg_header(self) -> str:
+        return f'circuit {self.logical_circuit().circuit_id} {self._name}'
 
 
 class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
@@ -228,7 +245,8 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
-                         physical_ram_uid=physical_ram_uid)
+                         physical_ram_uid=physical_ram_uid,
+                         name='CLIFF SPLIT')
         # TODO: 3
         self._cliff_max_num_parallel = 2
 
@@ -289,7 +307,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         '''
         rc_split_width_list, rc_split_depth_list = self.split_cliff()
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(rc_split_width_list)} RAMs in width dimension (in parallel)')
+            f'{self.msg_header()}: Split {len(rc_split_width_list)} RAMs in width dimension (in parallel)')
         return (rc_split_width_list, rc_split_depth_list)
 
     def split_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
@@ -316,27 +334,28 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
 
             if verbose:
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: RAM {ram_id} {rc.serialize(0)}')
-                logging.info(f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    physical:{prc.physical_shape} ' +
+                    f'{self.msg_header()}: RAM {ram_id} {rc.serialize(0)}')
+                logging.info(f'{self.msg_header()}:    physical:{prc.physical_shape} ' +
                              f'total_physical:{total_physical_shape}, ' +
                              f'logical:{logical_shape}, ' +
                              f'wasted:{wasted_bits}, ' +
                              f'extra_width:{extra_width}, extra_depth:{extra_depth}')
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
+                    f'{self.msg_header()}:    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
 
             if can_reduce_width:
                 if verbose:
                     logging.info(
-                        f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    Should split width')
+                        f'{self.msg_header()}:    Should split width')
                 split_width_list.append(rc)
-                # cliff_num_parallel
+                # self.split_rc_by_width(rc=rc, cliff_num_parallel=max(
+                #     min(prc.physical_shape_fit.num_parallel//2, self._cliff_max_num_parallel), 1))
                 self.split_rc_by_width(
                     rc, min(self._cliff_max_num_parallel, prc.physical_shape_fit.num_parallel-1))
             else:
                 if verbose:
                     logging.info(
-                        'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    Should split depth')
+                        f'{self.msg_header()}:    Should split depth')
                 split_depth_list.append(rc)
 
         return (split_width_list, split_depth_list)
@@ -379,8 +398,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
-                         physical_ram_uid=physical_ram_uid)
-        self._name = name
+                         physical_ram_uid=physical_ram_uid,
+                         name=name)
         # RNG
         self._rng = random.Random(seed)
 
@@ -404,6 +423,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     def prepare_area_calculation_cache(self):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
+        # TODO: use fast version
         self._fpga_area = self.calculate_fpga_area()
 
     def switch_to_best_circuit_config(self):
@@ -411,7 +431,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         if self._best_fpga_area_saved < self._fpga_area:
             self._circuit_config = self._best_circuit_config_saved
             logging.info(
-                f'circuit {self.logical_circuit().circuit_id} {self._name}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
+                f'{self.msg_header()}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
             self.prepare_area_calculation_cache()
 
     def get_search_space_size(self) -> int:
@@ -471,6 +491,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             apply_move()
             return MoveOutcome.ACCEPTED_AREA
 
+        # TODO: what if area_new == area_old? Think of tie-breaking
+
         if should_accept_worse_func(area_new, area_old):
             apply_move()
             return MoveOutcome.ACCEPTED_TEMPERATURE
@@ -494,6 +516,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             ram_archs=self.ram_archs(),
             logical_circuit=self.logical_circuit(),
             circuit_config=self.circuit_config(),
+            allow_sharing=False,
             skip_area=True).fpga_area
 
     def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
@@ -518,7 +541,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         num_steps = search_space_size * exploration_factor
 
         logging.info(
-            f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
+            f'{self.msg_header()} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
 
         def temperature_schedule(param: TemperatureScheduleParam) -> float:
             step_fraction = param.current_step_fraction()
@@ -569,7 +592,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: ' +
+                    f'{self.msg_header()} ANNEAL: ' +
                     f'extended {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
@@ -578,7 +601,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         area_stats = area_str(
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: ' +
+            f'{self.msg_header()} ANNEAL: ' +
             f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'{area_stats}')
         if stats:
@@ -607,7 +630,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         area_stats = area_str(
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} {self._name} GREEDY: converged, ' +
+            f'{self.msg_header()} GREEDY: converged, ' +
             f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
             f'{area_stats}')
 
@@ -618,6 +641,7 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
                          logical_circuit=logical_circuit,
                          circuit_config=CircuitConfig(
                              circuit_id=logical_circuit.circuit_id),
+                         name='INITIAL',
                          physical_ram_uid=0)
         # Search space
         self._prc_candidates = prc_candidates
@@ -641,3 +665,149 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
         self.circuit_config().rams.clear()
         for lr in self.logical_circuit().rams.values():
             self.circuit_config().insert_ram_config(self.solve_single_ram(logical_ram=lr))
+
+
+class SharingCircuitOptimizer(CircuitSolverBase):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, physical_ram_uid: int):
+        super().__init__(ram_archs=ram_archs,
+                         logical_circuit=logical_circuit,
+                         circuit_config=circuit_config,
+                         physical_ram_uid=physical_ram_uid,
+                         name='SHARING')
+
+    def find_single_port_lrcs(self) -> Dict[int, LogicalRamConfig]:
+        single_port_lrc_dict: Dict[int, LogicalRamConfig] = dict()
+
+        def find_single_port_lrc(lrc: LogicalRamConfig):
+            if lrc.prc.ram_mode.num_ports() == 1:
+                single_port_lrc_dict[lrc.prc.id] = lrc
+        self.circuit_config().execute_on_leaf(find_single_port_lrc)
+
+        return single_port_lrc_dict
+
+    def find_provider_lrcs(self, single_port_lrc_dict: Dict[int, LogicalRamConfig]) -> List[LogicalRamConfig]:
+        # All possible provider lrc
+        def can_be_provider(lrc: LogicalRamConfig):
+            if lrc.prc.get_shape().depth > lrc.logical_shape.depth:
+                ram_arch = self.ram_arch(lrc.prc.ram_arch_id)
+                if RamMode.TrueDualPort in ram_arch.get_supported_mode():
+                    if lrc.prc.physical_shape in ram_arch.get_shapes_for_mode(RamMode.TrueDualPort):
+                        return True
+            return False
+
+        return list(
+            filter(can_be_provider, single_port_lrc_dict.values()))
+
+    def find_sharing_pairs(self, single_port_lrc_dict: Dict[int, LogicalRamConfig], lrc_provider_list: List[LogicalRamConfig]) -> Set[Tuple[float, int, int]]:
+        provider_id_set = set(lrc.prc.id for lrc in lrc_provider_list)
+        # Find possible pairs
+        # (saved_area_per_bits, p_id, r_id)
+        sharing_pairs: Set[Tuple[float, int, int]] = set()
+        for provider_lrc in lrc_provider_list:
+            p_shape = provider_lrc.logical_shape
+            p_physical_shape = provider_lrc.prc.physical_shape
+            p_total_physical_shape = provider_lrc.prc.get_shape()
+            p_id = provider_lrc.prc.id
+            for receiver_lrc in single_port_lrc_dict.values():
+                r_id = receiver_lrc.prc.id
+                if p_id == r_id:
+                    continue
+
+                r_shape = receiver_lrc.logical_shape
+
+                # The aggregate depth of RAM 0 and 1 cannot be greater than the physical RAM’s
+                if p_shape.depth + r_shape.depth > p_physical_shape.depth:
+                    continue
+                # Physical RAM’s width must be equal or greater than RAM 0’s width and RAM 1’s width.
+                if r_shape.width > p_physical_shape.width:
+                    continue
+
+                provider_free_bits = p_total_physical_shape.get_size() - p_shape.get_size()
+                if r_id in provider_id_set:
+                    r_total_physical_shape = receiver_lrc.prc.get_shape()
+                    provider_free_bits += r_total_physical_shape.get_size() - r_shape.get_size()
+
+                r_logical_ram_mode = receiver_lrc.prc.ram_mode
+
+                new_receiver_lrc = LogicalRamConfig(
+                    logical_shape=receiver_lrc.logical_shape, prc=provider_lrc.prc)
+                new_extra_lut_count = new_receiver_lrc.get_extra_lut_count(
+                    r_logical_ram_mode)
+                old_extra_lut_count = receiver_lrc.get_extra_lut_count(
+                    r_logical_ram_mode)
+                saved_extra_lb_count = self.lb_arch().get_block_count_from_luts(
+                    old_extra_lut_count - new_extra_lut_count)
+                saved_regular_lb_area = saved_extra_lb_count * self.lb_arch().get_area()
+
+                saved_ram_count = receiver_lrc.prc.physical_shape_fit.get_count()
+                saved_ram_area = saved_ram_count * \
+                    self.ram_arch(receiver_lrc.prc.ram_arch_id).get_area()
+
+                saved_area = saved_regular_lb_area + saved_ram_area
+                sharing_pairs.add(
+                    (saved_area/provider_free_bits, p_id, r_id))
+        return sharing_pairs
+
+    def find_final_sharing_pairs(self, sharing_pairs: Set[Tuple[float, int, int]]) -> List[Tuple[float, int, int]]:
+        # Determine final share list
+        # (saved_area_per_bits, p_id, r_id)
+        final_sharing_pairs: List[Tuple[float, int, int]] = list()
+        while len(sharing_pairs) > 0:
+            accepted_pair = max(sharing_pairs)
+            sharing_pairs.remove(accepted_pair)
+            final_sharing_pairs.append(accepted_pair)
+
+            _, p_id, r_id = accepted_pair
+            for other_pair in list(sharing_pairs):
+                _, other_p_id, other_r_id = other_pair
+                if other_p_id == p_id or other_p_id == r_id or other_r_id == p_id or other_r_id == r_id:
+                    sharing_pairs.remove(other_pair)
+
+        return final_sharing_pairs
+
+    def solve(self, verbose: bool = False):
+        # All possible lrc
+        single_port_lrc_dict = self.find_single_port_lrcs()
+        if verbose:
+            logging.warning(
+                f'{self.msg_header()}: single-port LRC list: {len(single_port_lrc_dict)}')
+            for lrc in single_port_lrc_dict.values():
+                logging.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
+
+        # All possible lrc provider
+        lrc_provider_list = self.find_provider_lrcs(
+            single_port_lrc_dict=single_port_lrc_dict)
+        if verbose:
+            logging.info(
+                f'{self.msg_header()}: single-port LRC with extra depth list: {len(lrc_provider_list)}')
+            for lrc in lrc_provider_list:
+                logging.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
+
+        # Find sharing pair candidates, along with its gain
+        sharing_pairs = self.find_sharing_pairs(
+            single_port_lrc_dict=single_port_lrc_dict, lrc_provider_list=lrc_provider_list)
+        if verbose:
+            logging.info(
+                f'{self.msg_header()}: sharing_pairs (saved_area_per_free_provider_bits, provider, receiver): {len(sharing_pairs)}')
+            for delta, p_id, r_id in sharing_pairs:
+                logging.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
+
+        # Find final sharing pairs
+        final_sharing_pairs = self.find_final_sharing_pairs(
+            sharing_pairs=sharing_pairs)
+        if verbose:
+            logging.warning(
+                f'{self.msg_header()}: final sharing_pairs (saved_area_per_free_provider_bits, provider, receiver): {len(final_sharing_pairs)}')
+            for delta, p_id, r_id in final_sharing_pairs:
+                logging.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
+
+        # Apply final sharing pairs
+        num_eliminated_physical_rams = 0
+        for delta, p_id, r_id in final_sharing_pairs:
+            provider_lrc = single_port_lrc_dict[p_id]
+            receiver_lrc = single_port_lrc_dict[r_id]
+            num_eliminated_physical_rams += receiver_lrc.prc.physical_shape_fit.get_count()
+            provider_lrc.prc.ram_mode = RamMode.TrueDualPort
+            receiver_lrc.prc = provider_lrc.prc
+        logging.warning(
+            f'{self.msg_header()}: Shared {len(final_sharing_pairs)} logical rams, elminated {num_eliminated_physical_rams} physical rams')
