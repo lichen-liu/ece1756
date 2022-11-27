@@ -66,7 +66,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     circuit_config = solver.circuit_config()
     physical_ram_uid = solver.assign_physical_ram_uid()
 
-    # Optimize and split RAM
+    # Split RAM
     solver = SingleLevelSplitRamCircuitOptimizer(
         ram_archs=ram_archs,
         logical_circuit=logical_circuit,
@@ -368,7 +368,7 @@ class MoveOutcome(Enum):
 def area_str(initial_area: int, final_area: int, best_area: int) -> str:
     delta_to_initial = final_area-initial_area
     delta_to_best = final_area-best_area
-    return f'final_area={float(final_area):.4e} (delta_initial={(float(delta_to_initial)):.4e} delta_best={float(delta_to_best):.4e})'
+    return f'final_area={final_area} (delta_initial={delta_to_initial} delta_best={delta_to_best})'
 
 
 class CandidateBasedCircuitOptimizer(CircuitSolverBase):
@@ -492,14 +492,20 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
     def calculate_fpga_area(self) -> int:
-        return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
+        qor = calculate_fpga_qor_for_circuit(
+            ram_archs=self.ram_archs(),
+            logical_circuit=self.logical_circuit(),
+            circuit_config=self.circuit_config(),
+            skip_area=True)
+        return qor.fpga_area
 
     def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
         qor = calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,
             extra_lut_count=extra_lut_count,
-            physical_ram_count=physical_ram_count)
+            physical_ram_count=physical_ram_count,
+            skip_area=True)
         return qor.fpga_area
 
     def solve(self, effort_factor: float = 1.0):
@@ -510,7 +516,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         initial_temperature = 50 * effort_factor
         target_acceptance_ratio = 0.1
         # quench_starting_step_fraction = 0.95
-        quench_starting_step_fraction = 2
+        quench_starting_step_fraction = 2  # Disable
         # -------param-------
         search_space_size = self.get_search_space_size()
         num_steps = search_space_size * exploration_factor
@@ -628,7 +634,7 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
             logical_shape=logical_ram.shape, prc=prc_candidate.prc), self.get_prc_candidate(logical_ram_id=logical_ram.ram_id))
 
         def area_estimator(lrc: LogicalRamConfig) -> int:
-            return calculate_fpga_qor_for_ram_config(ram_archs=self.ram_archs(), logic_block_count=0, logical_ram_config=lrc).fpga_area
+            return calculate_fpga_qor_for_ram_config(ram_archs=self.ram_archs(), logic_block_count=0, logical_ram_config=lrc, skip_area=True).fpga_area
         best_candidate_lrc = min(map(lambda lrc: (lrc, area_estimator(
             lrc)), candidate_lrc_list), key=lambda p: p[1])[0]
         # Finalize the best candidate

@@ -89,3 +89,7 @@
 # anneal L2
 1127:01:45:43.437 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.073800E+08
 1127:01:45:43.442 WARNING [driver.py] Total elapsed 486.405 seconds
+
+# Use required LB as area during optimization
+1127:03:26:11.807 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
+1127:03:26:11.812 WARNING [driver.py] Total elapsed 403.530 seconds
