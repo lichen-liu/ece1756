@@ -6,12 +6,12 @@ from itertools import starmap
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterator, List, NamedTuple, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Tuple
 
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
 
-from .logical_ram import LogicalRam, RamShape, RamShapeFit
+from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
 from .mapping_config import AllCircuitConfig, CircuitConfig, CombinedLogicalRamConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig, RamSplitDimension
 from .logical_circuit import LogicalCircuit
@@ -28,7 +28,7 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
 
     def starmap_dispatcher(starmap_func):
         circuit_configs = starmap_func(solve_single_circuit, map(
-            lambda lc: (ram_archs, lc), logical_circuits.values()))
+            lambda lc: (ram_archs, lc, num_circuits), logical_circuits.values()))
         for circuit_config in circuit_configs:
             acc.insert_circuit_config(cc=circuit_config)
 
@@ -40,9 +40,9 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
     return acc
 
 
-def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit) -> CircuitConfig:
-    prc_candidates = generate_candidate_prc_for_lc(
-        ram_archs=ram_archs, logical_circuit=logical_circuit)
+def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, num_circuits: int) -> CircuitConfig:
+    prc_candidates = generate_candidate_prc_for_lcs(
+        ram_archs=ram_archs, logical_rams=logical_circuit.rams.values())
 
     # Generate an initial config
     solver = SingleLevelCircuitInitialSolution(
@@ -54,13 +54,14 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     physical_ram_uid = solver.assign_physical_ram_uid()
 
     # Incrementally improving
-    solver = SingleLevelCircuitOptimizer(
+    solver = CandidateBasedCircuitOptimizer(
         ram_archs=ram_archs,
         logical_circuit=logical_circuit,
         circuit_config=circuit_config,
         seed=circuit_config.circuit_id,
         physical_ram_uid=physical_ram_uid,
-        prc_candidates=prc_candidates)
+        prc_candidates=prc_candidates,
+        name='L1')
     solver.solve()
     circuit_config = solver.circuit_config()
     physical_ram_uid = solver.assign_physical_ram_uid()
@@ -72,8 +73,26 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         circuit_config=circuit_config,
         physical_ram_uid=physical_ram_uid,
     )
-    solver.solve()
+    rcs_split_width_list, _ = solver.solve()
     circuit_config = solver.circuit_config()
+    physical_ram_uid = solver.assign_physical_ram_uid()
+
+    # if len(rcs_split_width_list) > 0:
+    #     split_width_prc_candidates = generate_candidate_prc_for_rcs(
+    #         ram_archs=ram_archs, ram_configs=rcs_split_width_list, get_lrc_from_rc=lambda rc: rc.lrc.clrc.lrc_r)
+    #     # Incrementally improving rcs_split_width_list
+    #     solver = CandidateBasedCircuitOptimizer(
+    #         ram_archs=ram_archs,
+    #         logical_circuit=logical_circuit,
+    #         circuit_config=circuit_config,
+    #         seed=circuit_config.circuit_id + num_circuits,
+    #         physical_ram_uid=physical_ram_uid,
+    #         prc_candidates=split_width_prc_candidates,
+    #         name='L2R',
+    #         enable_save_best=True)
+    #     solver.solve(effort_factor=1.0)
+    #     circuit_config = solver.circuit_config()
+    # physical_ram_uid = solver.assign_physical_ram_uid()
 
     return circuit_config
 
@@ -87,33 +106,71 @@ def get_ram_shape_fits(candidate_physical_shapes: List[RamShape], target_logical
             for physical_shape in candidate_physical_shapes if legal_ram_shape_fit_filter(fit := target_logical_shape.get_fit(smaller_shape=physical_shape)))
 
 
-def generate_candidate_prc_for_lr(ram_archs: Dict[int, SIVRamArch], logical_ram: LogicalRam) -> List[PhysicalRamConfig]:
+class PRCLocator(ABC):
+    @abstractmethod
+    def get_lrc_from_rc(self, rc: RamConfig) -> LogicalRamConfig:
+        pass
+
+    def get_prc_from_rc(self, rc: RamConfig) -> PhysicalRamConfig:
+        return self.get_lrc_from_rc(rc).prc
+
+    def set_prc_to_rc(self, rc: RamConfig, prc: PhysicalRamConfig):
+        self.get_lrc_from_rc(rc).prc = prc
+
+
+class PRCCandidate(NamedTuple):
+    prc: PhysicalRamConfig
+    locator: PRCLocator
+
+
+class SingleLevelPRCLocator(PRCLocator):
+    def get_lrc_from_rc(self, rc: RamConfig) -> LogicalRamConfig:
+        return rc.lrc
+
+
+class TwoLevelRightLocator(PRCLocator):
+    def get_lrc_from_rc(self, rc: RamConfig) -> LogicalRamConfig:
+        return rc.lrc.clrc.lrc_r
+
+
+def generate_candidate_prc_for_logical_shape(ram_archs: Dict[int, SIVRamArch], logical_shape: RamShape, ram_mode: RamMode, locator: PRCLocator) -> List[PRCCandidate]:
     # Convert candidates into LogicalRamConfigs
-    def convert_to_prc(ram_arch_id: int, physical_ram_shape: RamShape, physical_ram_shape_fit: RamShapeFit):
+    def convert_to_prc(ram_arch_id: int, physical_ram_shape: RamShape, physical_ram_shape_fit: RamShapeFit) -> PRCCandidate:
         prc = PhysicalRamConfig(
             id=-1,
             physical_shape_fit=physical_ram_shape_fit,
             ram_arch_id=ram_arch_id,
-            ram_mode=logical_ram.mode,
+            ram_mode=ram_mode,
             physical_shape=physical_ram_shape)
-        return prc
+        return PRCCandidate(prc=prc, locator=locator)
 
     # Find candidates
     candidate_prc_list = list()
     for ram_arch in ram_archs.values():
-        if logical_ram.mode not in ram_arch.get_supported_mode():
+        if ram_mode not in ram_arch.get_supported_mode():
             continue
-        physical_shapes = ram_arch.get_shapes_for_mode(logical_ram.mode)
+        physical_shapes = ram_arch.get_shapes_for_mode(ram_mode)
         candidate_physical_shape_fits = get_ram_shape_fits(
-            candidate_physical_shapes=physical_shapes, target_logical_shape=logical_ram.shape)
+            candidate_physical_shapes=physical_shapes, target_logical_shape=logical_shape)
         candidate_prc_list.extend(
             map(lambda psf: convert_to_prc(ram_arch_id=ram_arch.get_id(), physical_ram_shape=psf[0], physical_ram_shape_fit=psf[1]), candidate_physical_shape_fits))
 
     return candidate_prc_list
 
 
-def generate_candidate_prc_for_lc(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit) -> Dict[int, List[PhysicalRamConfig]]:
-    return {logical_ram.ram_id: generate_candidate_prc_for_lr(ram_archs=ram_archs, logical_ram=logical_ram) for logical_ram in logical_circuit.rams.values()}
+def generate_candidate_prc_for_lcs(ram_archs: Dict[int, SIVRamArch], logical_rams: Iterable[LogicalRam]) -> Dict[int, List[PRCCandidate]]:
+    locator = SingleLevelPRCLocator()
+    return {logical_ram.ram_id:
+            generate_candidate_prc_for_logical_shape(
+                ram_archs=ram_archs, logical_shape=logical_ram.shape, ram_mode=logical_ram.mode, locator=locator)
+            for logical_ram in logical_rams}
+
+
+def generate_candidate_prc_for_rcs(ram_archs: Dict[int, SIVRamArch], ram_configs: Iterable[RamConfig], locator: PRCLocator) -> Dict[int, List[PRCCandidate]]:
+    return {ram_config.ram_id:
+            generate_candidate_prc_for_logical_shape(
+                ram_archs=ram_archs, logical_shape=locator.get_lrc_from_rc(ram_config).logical_shape, ram_mode=ram_config.get_ram_mode(), locator=locator)
+            for ram_config in ram_configs}
 
 
 class CircuitSolverBase:
@@ -145,19 +202,22 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                          circuit_config=circuit_config,
                          physical_ram_uid=physical_ram_uid)
 
-    def split_rc_by_width(self, rc: RamConfig):
+        self._cliff_max_num_parallel = 2
+
+    def split_rc_by_width(self, rc: RamConfig, cliff_num_parallel: int):
         '''
         Split the RC by width using the same physical config except for num_parallel=1,
         will have no impact on area, thus using it as initial solution
         '''
         old_prc = rc.lrc.prc
         old_prc_fit = old_prc.physical_shape_fit
-        assert old_prc_fit.num_parallel >= 2
+        assert cliff_num_parallel > 0
+        assert old_prc_fit.num_parallel >= cliff_num_parallel+1
         old_logical_shape = rc.lrc.logical_shape
 
         l_prc_fit = RamShapeFit(
             num_series=old_prc_fit.num_series,
-            num_parallel=old_prc_fit.num_parallel-1)
+            num_parallel=old_prc_fit.num_parallel-cliff_num_parallel)
         l_prc = PhysicalRamConfig(
             id=old_prc.id,
             physical_shape_fit=l_prc_fit,
@@ -169,10 +229,10 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
             depth=old_logical_shape.depth)
         l_lrc = LogicalRamConfig(logical_shape=l_logical_shape, prc=l_prc)
 
-        # Splitted Cliff
+        # Splitted Cliff, as lrc_r
         r_prc_fit = RamShapeFit(
             num_series=old_prc_fit.num_series,
-            num_parallel=1)
+            num_parallel=cliff_num_parallel)
         r_prc = PhysicalRamConfig(
             id=self.assign_physical_ram_uid(),
             physical_shape_fit=r_prc_fit,
@@ -195,16 +255,18 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         # assert rc.lrc.get_physical_ram_count() == lrc.get_physical_ram_count()
         rc.lrc = lrc
 
-    def solve(self):
-        split_width_list, split_depth_list = self.find_cliff()
-        for rc in split_width_list:
-            self.split_rc_by_width(rc)
+    def solve(self) -> Tuple[List[RamConfig], List[RamConfig]]:
+        '''
+        (rcs_to_split_width, rcs_to_split_depth)
+        '''
+        rcs_split_width_list, rcs_split_depth_list = self.find_cliff()
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(split_width_list)} RAMs in width dimension (in parallel)')
+            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(rcs_split_width_list)} RAMs in width dimension (in parallel)')
+        return (rcs_split_width_list, rcs_split_depth_list)
 
     def find_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
         '''
-        (to_split_width, to_split_depth)
+        (rcs_to_split_width, rcs_to_split_depth)
         '''
         split_width_list = list()
         split_depth_list = list()
@@ -242,6 +304,9 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                     logging.info(
                         f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT:    Should split width')
                 split_width_list.append(rc)
+                # cliff_num_parallel
+                self.split_rc_by_width(
+                    rc, min(self._cliff_max_num_parallel, prc.physical_shape_fit.num_parallel-1))
             else:
                 if verbose:
                     logging.info(
@@ -273,16 +338,17 @@ class MoveOutcome(Enum):
         return self == self.ACCEPTED_AREA or self == self.ACCEPTED_TEMPERATURE
 
 
-class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
+class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     '''
-    Only perform moves for ram_id defined in prc_candidates, the relationship between rc -> prc must be provided
+    Only perform moves for ram_id defined in prc_candidates, the relationship between rc -> prc must be provided by prc_candidates
     '''
 
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int, prc_candidates: Dict[int, List[PhysicalRamConfig]]):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int, prc_candidates: Dict[int, List[PRCCandidate]], name: str, enable_save_best: bool = False):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
                          physical_ram_uid=physical_ram_uid)
+        self._name = name
         # RNG
         self._rng = random.Random(seed)
 
@@ -294,21 +360,13 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         # Area calculation
         self.prepare_area_calculation_cache()
         # Save the best copy
-        self._enable_save_best = False
+        self._enable_save_best = enable_save_best
         self._best_fpga_area_saved = self._fpga_area
         if self._enable_save_best:
             self._best_circuit_config_saved = copy.deepcopy(
                 self.circuit_config())
 
-    @abstractmethod
-    def get_prc_from_rc(self, rc: RamConfig) -> PhysicalRamConfig:
-        pass
-
-    @abstractmethod
-    def set_prc_to_rc(self, rc: RamConfig, prc_new: PhysicalRamConfig):
-        pass
-
-    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
+    def get_prc_candidate(self, logical_ram_id: int) -> List[PRCCandidate]:
         return self._prc_candidates[logical_ram_id]
 
     def prepare_area_calculation_cache(self):
@@ -320,6 +378,8 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         assert self._enable_save_best
         if self._best_fpga_area_saved < self._fpga_area:
             self._circuit_config = self._best_circuit_config_saved
+            logging.info(
+                f'circuit {self.logical_circuit().circuit_id} {self._name}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
             self.prepare_area_calculation_cache()
 
     def get_search_space_size(self) -> int:
@@ -329,18 +389,21 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         logical_ram_id = self._rng.choice(list(self._prc_candidates.keys()))
         return self.circuit_config().rams[logical_ram_id]
 
-    def propose_move(self, rc: RamConfig) -> PhysicalRamConfig:
+    def propose_move(self, rc: RamConfig) -> PRCCandidate:
         # Randomly pick a new prc
         return self._rng.choice(
-            self.get_candidate_prc(logical_ram_id=rc.ram_id))
+            self.get_prc_candidate(logical_ram_id=rc.ram_id))
 
-    def evaluate_apply_move(self, rc: RamConfig, prc_new: PhysicalRamConfig, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
+    def evaluate_apply_move(self, rc: RamConfig, prc_candidate: PRCCandidate, should_accept_worse_func: Callable[[int, int], bool]) -> MoveOutcome:
         '''
         should_accept_worse_func(new_area,old_area)
         Return True if new prc is accepted; otherwise False
         '''
+        prc_new = prc_candidate.prc
+        prc_new_locator = prc_candidate.locator
+
         # Save old
-        prc_old = self.get_prc_from_rc(rc=rc)
+        prc_old = prc_new_locator.get_prc_from_rc(rc=rc)
         # Get old area
         area_old = self._fpga_area
 
@@ -360,7 +423,7 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         def apply_move():
             # Install new
             prc_new.id = prc_old.id
-            self.set_prc_to_rc(rc=rc, prc_new=prc_new)
+            prc_new_locator.set_prc_to_rc(rc=rc, prc=prc_new)
             # Update area
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
@@ -391,9 +454,9 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         rc = self.select_rc_to_move()
 
         # Randomly pick a new prc
-        prc_new = self.propose_move(rc=rc)
+        prc_candidate = self.propose_move(rc=rc)
 
-        return self.evaluate_apply_move(rc=rc, prc_new=prc_new, should_accept_worse_func=should_accept_worse_func)
+        return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
     def calculate_fpga_area(self) -> int:
         return calculate_fpga_qor_for_circuit(ram_archs=self.ram_archs(), logical_circuit=self.logical_circuit(), circuit_config=self.circuit_config()).fpga_area
@@ -406,12 +469,12 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
             physical_ram_count=physical_ram_count)
         return qor.fpga_area
 
-    def solve(self):
+    def solve(self, effort_factor: float = 1.0):
         # Hillclimb
         # -------param-------
-        exploration_factor = 40
-        max_outer_loop = 20
-        initial_temperature = 50
+        exploration_factor = max(1, int(40 * effort_factor))
+        max_outer_loop = max(1, int(20 * effort_factor))
+        initial_temperature = 50 * effort_factor * effort_factor
         target_acceptance_ratio = 0.1
         quench_starting_step_fraction = 0.95
         # -------param-------
@@ -419,7 +482,7 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         num_steps = search_space_size * exploration_factor
 
         logging.info(
-            f'circuit {self.logical_circuit().circuit_id} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
+            f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
 
         def temperature_schedule(param: TemperatureScheduleParam) -> float:
             step_fraction = param.current_step_fraction()
@@ -435,14 +498,19 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
                     temperature_schedule=temperature_schedule,
                     stats=False)
 
+        if self._enable_save_best:
+            self.switch_to_best_circuit_config()
+
         self.greedy()
 
     def anneal(self, num_steps: int, target_acceptance_ratio: float, max_outer_loop: int, temperature_schedule: Callable[[TemperatureScheduleParam], float], stats: bool = False):
+        assert num_steps > 0
         outcome_stats = Counter()
         num_accepted = 0
         steps_performed = 0
         total_steps_to_perform = 0
 
+        start_area = self._fpga_area
         for _ in range(max_outer_loop):
             total_steps_to_perform += num_steps
             for _ in range(num_steps):
@@ -465,16 +533,16 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
-                    f'circuit {self.logical_circuit().circuit_id} ANNEAL: ' +
+                    f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: ' +
                     f'extended {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
             else:
                 break
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} ANNEAL: ' +
+            f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: ' +
             f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
+            f'start_area={start_area} final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
@@ -482,13 +550,15 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         is_converged = False
         convergence_loop_counter = 0
         num_accepted = 0
+
+        start_area = self._fpga_area
         while not is_converged:
             is_converged = True
             for logical_ram_id, prc_new_list in self._prc_candidates.items():
                 rc = self.circuit_config().rams[logical_ram_id]
                 for prc_new in prc_new_list:
                     outcome = self.evaluate_apply_move(
-                        rc=rc, prc_new=prc_new, should_accept_worse_func=lambda _a, _b: False)
+                        rc=rc, prc_candidate=prc_new, should_accept_worse_func=lambda _a, _b: False)
                     if outcome.is_accepted():
                         is_converged = False
                         num_accepted += 1
@@ -497,21 +567,13 @@ class FixedLevelCircuitOptimizer(CircuitSolverBase, ABC):
         search_space_size = self.get_search_space_size()
         steps_performed = convergence_loop_counter * search_space_size
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} GREEDY: converged, ' +
+            f'circuit {self.logical_circuit().circuit_id} {self._name} GREEDY: converged, ' +
             f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
-
-
-class SingleLevelCircuitOptimizer(FixedLevelCircuitOptimizer):
-    def get_prc_from_rc(self, rc: RamConfig) -> PhysicalRamConfig:
-        return rc.lrc.prc
-
-    def set_prc_to_rc(self, rc: RamConfig, prc_new: PhysicalRamConfig):
-        rc.lrc.prc = prc_new
+            f'start_area={start_area} final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
 
 
 class SingleLevelCircuitInitialSolution(CircuitSolverBase):
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, prc_candidates: Dict[int, List[PhysicalRamConfig]]):
+    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, prc_candidates: Dict[int, List[PRCCandidate]]):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=CircuitConfig(
@@ -520,12 +582,12 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
         # Search space
         self._prc_candidates = prc_candidates
 
-    def get_candidate_prc(self, logical_ram_id: int) -> List[PhysicalRamConfig]:
+    def get_prc_candidate(self, logical_ram_id: int) -> List[PRCCandidate]:
         return self._prc_candidates[logical_ram_id]
 
     def solve_single_ram(self, logical_ram: LogicalRam) -> RamConfig:
-        candidate_lrc_list = map(lambda prc: LogicalRamConfig(
-            logical_shape=logical_ram.shape, prc=prc), self.get_candidate_prc(logical_ram_id=logical_ram.ram_id))
+        candidate_lrc_list = map(lambda prc_candidate: LogicalRamConfig(
+            logical_shape=logical_ram.shape, prc=prc_candidate.prc), self.get_prc_candidate(logical_ram_id=logical_ram.ram_id))
 
         def area_estimator(lrc: LogicalRamConfig) -> int:
             return calculate_fpga_qor_for_ram_config(ram_archs=self.ram_archs(), logic_block_count=0, logical_ram_config=lrc).fpga_area
