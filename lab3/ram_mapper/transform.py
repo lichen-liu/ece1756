@@ -419,8 +419,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         return self._candidate_prc_size
 
     def select_rc_to_move(self) -> RamConfig:
-        logical_ram_id = self._rng.choice(list(self._prc_candidates.keys()))
-        return self.circuit_config().rams[logical_ram_id]
+        return self.circuit_config().rams[self._rng.choice(list(self._prc_candidates.keys()))]
 
     def propose_move(self, rc: RamConfig) -> PRCCandidate:
         # Randomly pick a new prc
@@ -492,21 +491,19 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
     def calculate_fpga_area(self) -> int:
-        qor = calculate_fpga_qor_for_circuit(
+        return calculate_fpga_qor_for_circuit(
             ram_archs=self.ram_archs(),
             logical_circuit=self.logical_circuit(),
             circuit_config=self.circuit_config(),
-            skip_area=True)
-        return qor.fpga_area
+            skip_area=True).fpga_area
 
     def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
-        qor = calculate_fpga_qor(
+        return calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,
             extra_lut_count=extra_lut_count,
             physical_ram_count=physical_ram_count,
-            skip_area=True)
-        return qor.fpga_area
+            skip_area=True).fpga_area
 
     def solve(self, effort_factor: float = 1.0):
         # Hillclimb
