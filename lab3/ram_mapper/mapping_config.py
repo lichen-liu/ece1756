@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import chain
 import logging
-from typing import Dict, Iterator, Optional
+from typing import Callable, Dict, Iterator, Optional
 from .physical_arch import RamShape
-from .utils import sorted_dict_items
+from .utils import T, sorted_dict_items
 from .logical_ram import RamMode, RamShapeFit
 from .siv_arch import accumulate_extra_luts, determine_extra_luts, determine_write_decoder_luts
 
@@ -36,6 +36,15 @@ class ConfigSerializer(ABC):
             f.writelines(self.serialize_gen(0))
 
 
+class ConfigLeafExecutor(ABC):
+    '''
+    Find the LogicalRamConfig that has PhysicalRamConfig and call the callback function
+    '''
+    @abstractmethod
+    def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
+        pass
+
+
 class ConfigShape(ABC):
     @abstractmethod
     def get_shape(self) -> RamShape:
@@ -58,7 +67,7 @@ class ConfigExtraLutCount(ABC):
 
 
 @dataclass
-class RamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigExtraLutCount):
+class RamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigExtraLutCount, ConfigLeafExecutor):
     circuit_id: int
     ram_id: int
     lrc: LogicalRamConfig
@@ -76,9 +85,12 @@ class RamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigExt
     def get_physical_ram_count(self) -> Counter[int]:
         return self.lrc.get_physical_ram_count()
 
+    def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
+        self.lrc.execute_on_leaf(callback)
+
 
 @dataclass
-class LogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
+class LogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigLeafExecutor):
     logical_shape: RamShape
     clrc: Optional[CombinedLogicalRamConfig] = None
     prc: Optional[PhysicalRamConfig] = None
@@ -129,6 +141,12 @@ class LogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
         else:
             return self.clrc.get_physical_ram_count()
 
+    def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
+        if self.prc is not None:
+            callback(self)
+        else:
+            self.clrc.execute_on_leaf(callback)
+
 
 class RamSplitDimension(Enum):
     series = auto()
@@ -136,7 +154,7 @@ class RamSplitDimension(Enum):
 
 
 @dataclass
-class CombinedLogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
+class CombinedLogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigLeafExecutor):
     split: RamSplitDimension
     lrc_l: LogicalRamConfig
     lrc_r: LogicalRamConfig
@@ -161,6 +179,10 @@ class CombinedLogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamC
     def get_physical_ram_count(self) -> Counter[int]:
         return self.lrc_l.get_physical_ram_count() + self.lrc_r.get_physical_ram_count()
 
+    def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
+        self.lrc_l.execute_on_leaf(callback)
+        self.lrc_r.execute_on_leaf(callback)
+
 
 @dataclass
 class PhysicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
@@ -181,7 +203,7 @@ class PhysicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
 
 
 @dataclass
-class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCount):
+class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCount, ConfigLeafExecutor):
     circuit_id: int
     rams: Dict[int, RamConfig] = field(default_factory=dict)
 
@@ -207,6 +229,10 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCoun
 
     def get_extra_lut_count(self) -> int:
         return sum(map(lambda rc: rc.get_extra_lut_count(), self.rams.values()))
+
+    def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
+        for ram in self.rams.values():
+            ram.execute_on_leaf(callback)
 
 
 @dataclass
