@@ -85,3 +85,7 @@
 # refactor annelaer
 1127:00:10:19.366 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.077824E+08
 1127:00:10:19.371 WARNING [driver.py] Total elapsed 178.687 seconds
+
+# anneal L2
+1127:01:45:43.437 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.073800E+08
+1127:01:45:43.442 WARNING [driver.py] Total elapsed 486.405 seconds

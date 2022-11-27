@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections import Counter
+from collections import Counter, defaultdict
 import copy
 from enum import Enum, auto
 from itertools import starmap
@@ -73,26 +73,48 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         circuit_config=circuit_config,
         physical_ram_uid=physical_ram_uid,
     )
-    rcs_split_width_list, _ = solver.solve()
+    rc_split_width_list, _ = solver.solve()
     circuit_config = solver.circuit_config()
     physical_ram_uid = solver.assign_physical_ram_uid()
 
-    # if len(rcs_split_width_list) > 0:
-    #     split_width_prc_candidates = generate_candidate_prc_for_rcs(
-    #         ram_archs=ram_archs, ram_configs=rcs_split_width_list, get_lrc_from_rc=lambda rc: rc.lrc.clrc.lrc_r)
-    #     # Incrementally improving rcs_split_width_list
-    #     solver = CandidateBasedCircuitOptimizer(
-    #         ram_archs=ram_archs,
-    #         logical_circuit=logical_circuit,
-    #         circuit_config=circuit_config,
-    #         seed=circuit_config.circuit_id + num_circuits,
-    #         physical_ram_uid=physical_ram_uid,
-    #         prc_candidates=split_width_prc_candidates,
-    #         name='L2R',
-    #         enable_save_best=True)
-    #     solver.solve(effort_factor=1.0)
-    #     circuit_config = solver.circuit_config()
-    # physical_ram_uid = solver.assign_physical_ram_uid()
+    if len(rc_split_width_list) > 0:
+        prc_candidates = defaultdict(list)
+
+        def merge_dict(dd, to_merge):
+            for k, v in to_merge.items():
+                dd[k].extend(v)
+
+        merge_dict(prc_candidates,
+                   generate_candidate_prc_for_rcs(
+                       ram_archs=ram_archs,
+                       ram_configs=rc_split_width_list,
+                       locator=TwoLevelRightPRCLocator()))
+        merge_dict(prc_candidates,
+                   generate_candidate_prc_for_rcs(
+                       ram_archs=ram_archs,
+                       ram_configs=rc_split_width_list,
+                       locator=TwoLevelLeftPRCLocator()))
+        splitted_ram_ids = set(rc.ram_id for rc in rc_split_width_list)
+        merge_dict(prc_candidates,
+                   generate_candidate_prc_for_rcs(
+                       ram_archs=ram_archs,
+                       ram_configs=filter(
+                           lambda rc: rc.ram_id not in splitted_ram_ids, circuit_config.rams.values()),
+                       locator=SingleLevelPRCLocator()))
+
+        # Incrementally improving rcs_split_width_list
+        solver = CandidateBasedCircuitOptimizer(
+            ram_archs=ram_archs,
+            logical_circuit=logical_circuit,
+            circuit_config=circuit_config,
+            seed=circuit_config.circuit_id + num_circuits,
+            physical_ram_uid=physical_ram_uid,
+            prc_candidates=prc_candidates,
+            name='L2',
+            enable_save_best=True)
+        solver.solve(effort_factor=1.0)
+        circuit_config = solver.circuit_config()
+    physical_ram_uid = solver.assign_physical_ram_uid()
 
     return circuit_config
 
@@ -128,9 +150,14 @@ class SingleLevelPRCLocator(PRCLocator):
         return rc.lrc
 
 
-class TwoLevelRightLocator(PRCLocator):
+class TwoLevelRightPRCLocator(PRCLocator):
     def get_lrc_from_rc(self, rc: RamConfig) -> LogicalRamConfig:
         return rc.lrc.clrc.lrc_r
+
+
+class TwoLevelLeftPRCLocator(PRCLocator):
+    def get_lrc_from_rc(self, rc: RamConfig) -> LogicalRamConfig:
+        return rc.lrc.clrc.lrc_l
 
 
 def generate_candidate_prc_for_logical_shape(ram_archs: Dict[int, SIVRamArch], logical_shape: RamShape, ram_mode: RamMode, locator: PRCLocator) -> List[PRCCandidate]:
@@ -257,16 +284,16 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
 
     def solve(self) -> Tuple[List[RamConfig], List[RamConfig]]:
         '''
-        (rcs_to_split_width, rcs_to_split_depth)
+        (rc_split_width_list, rc_split_depth_list)
         '''
-        rcs_split_width_list, rcs_split_depth_list = self.find_cliff()
+        rc_split_width_list, rc_split_depth_list = self.split_cliff()
         logging.warning(
-            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(rcs_split_width_list)} RAMs in width dimension (in parallel)')
-        return (rcs_split_width_list, rcs_split_depth_list)
+            f'circuit {self.logical_circuit().circuit_id} CLIFF SPLIT: Split {len(rc_split_width_list)} RAMs in width dimension (in parallel)')
+        return (rc_split_width_list, rc_split_depth_list)
 
-    def find_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
+    def split_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
         '''
-        (rcs_to_split_width, rcs_to_split_depth)
+        (split_width_list, split_depth_list)
         '''
         split_width_list = list()
         split_depth_list = list()
@@ -336,6 +363,12 @@ class MoveOutcome(Enum):
 
     def is_accepted(self) -> bool:
         return self == self.ACCEPTED_AREA or self == self.ACCEPTED_TEMPERATURE
+
+
+def area_str(initial_area: int, final_area: int, best_area: int) -> str:
+    delta_to_initial = final_area-initial_area
+    delta_to_best = final_area-best_area
+    return f'final_area={float(final_area):.4e} (delta_initial={(float(delta_to_initial)):.4e} delta_best={float(delta_to_best):.4e})'
 
 
 class CandidateBasedCircuitOptimizer(CircuitSolverBase):
@@ -474,9 +507,10 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         # -------param-------
         exploration_factor = max(1, int(40 * effort_factor))
         max_outer_loop = max(1, int(20 * effort_factor))
-        initial_temperature = 50 * effort_factor * effort_factor
+        initial_temperature = 50 * effort_factor
         target_acceptance_ratio = 0.1
-        quench_starting_step_fraction = 0.95
+        # quench_starting_step_fraction = 0.95
+        quench_starting_step_fraction = 2
         # -------param-------
         search_space_size = self.get_search_space_size()
         num_steps = search_space_size * exploration_factor
@@ -539,10 +573,12 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                     f'at temperature {temperature_schedule(TemperatureScheduleParam(num_steps=total_steps_to_perform+num_steps, current_step=steps_performed, num_accepted=num_accepted))}')
             else:
                 break
+        area_stats = area_str(
+            initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'circuit {self.logical_circuit().circuit_id} {self._name} ANNEAL: ' +
             f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'start_area={start_area} final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
+            f'{area_stats}')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
 
@@ -566,10 +602,12 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         search_space_size = self.get_search_space_size()
         steps_performed = convergence_loop_counter * search_space_size
+        area_stats = area_str(
+            initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'circuit {self.logical_circuit().circuit_id} {self._name} GREEDY: converged, ' +
             f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
-            f'start_area={start_area} final_area={self._fpga_area} best_area={self._best_fpga_area_saved} (Match={self._fpga_area==self._best_fpga_area_saved})')
+            f'{area_stats}')
 
 
 class SingleLevelCircuitInitialSolution(CircuitSolverBase):
