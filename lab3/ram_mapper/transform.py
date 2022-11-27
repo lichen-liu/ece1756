@@ -78,12 +78,11 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     physical_ram_uid = solver.assign_physical_ram_uid()
 
     if len(rc_split_width_list) > 0:
-        prc_candidates = defaultdict(list)
-
+        # Incrementally improving
         def merge_dict(dd, to_merge):
             for k, v in to_merge.items():
                 dd[k].extend(v)
-
+        prc_candidates = defaultdict(list)
         merge_dict(prc_candidates,
                    generate_candidate_prc_for_rcs(
                        ram_archs=ram_archs,
@@ -101,8 +100,6 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
                        ram_configs=filter(
                            lambda rc: rc.ram_id not in splitted_ram_ids, circuit_config.rams.values()),
                        locator=SingleLevelPRCLocator()))
-
-        # Incrementally improving rcs_split_width_list
         solver = CandidateBasedCircuitOptimizer(
             ram_archs=ram_archs,
             logical_circuit=logical_circuit,
@@ -114,7 +111,11 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
             enable_save_best=True)
         solver.solve(effort_factor=1.0)
         circuit_config = solver.circuit_config()
-    physical_ram_uid = solver.assign_physical_ram_uid()
+        # physical_ram_uid = solver.assign_physical_ram_uid()
+
+    if False:
+        for ram_id, rc in sorted_dict_items(circuit_config.rams):
+            pass
 
     return circuit_config
 
@@ -228,7 +229,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
                          physical_ram_uid=physical_ram_uid)
-
+        # TODO: 3
         self._cliff_max_num_parallel = 2
 
     def split_rc_by_width(self, rc: RamConfig, cliff_num_parallel: int):
@@ -301,9 +302,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
             prc = rc.lrc.prc
             if prc.physical_shape_fit.get_count() == 1:
                 continue
-            total_physical_shape = RamShape(
-                width=prc.physical_shape.width*prc.physical_shape_fit.num_parallel,
-                depth=prc.physical_shape.depth*prc.physical_shape_fit.num_series)
+            total_physical_shape = prc.get_shape()
             logical_shape = rc.lrc.logical_shape
             wasted_bits = total_physical_shape.get_size() - logical_shape.get_size()
 

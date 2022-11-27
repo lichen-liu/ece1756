@@ -97,3 +97,7 @@
 # Do not infer ram mode from physical ram
 1127:04:16:41.841 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
 1127:04:16:41.846 WARNING [driver.py] Total elapsed 418.954 seconds
+
+# Minor
+1127:04:58:59.092 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
+1127:04:58:59.097 WARNING [driver.py] Total elapsed 413.542 seconds

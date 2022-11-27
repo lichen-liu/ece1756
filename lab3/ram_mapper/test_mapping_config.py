@@ -33,10 +33,6 @@ class MappingConfigTestCase(unittest.TestCase):
         rc = self.generate_1level_RamConfig()
         self.assertEqual(rc.ram_mode, RamMode.SimpleDualPort)
 
-    def test_RamConfig_1level_is_simple(self):
-        rc = self.generate_1level_RamConfig()
-        self.assertTrue(rc.is_simple())
-
     @staticmethod
     def generate_2level_RamConfig() -> RamConfig:
         prc0 = PhysicalRamConfig(id=0, physical_shape_fit=RamShapeFit(num_series=1, num_parallel=4), ram_arch_id=2,
@@ -76,10 +72,6 @@ class MappingConfigTestCase(unittest.TestCase):
     def test_RamConfig_2level_ram_mode(self):
         rc = self.generate_2level_RamConfig()
         self.assertEqual(rc.ram_mode, RamMode.SinglePort)
-
-    def test_RamConfig_2level_ram_mode(self):
-        rc = self.generate_2level_RamConfig()
-        self.assertFalse(rc.is_simple())
 
     @ staticmethod
     def generate_3level_RamConfig() -> RamConfig:
@@ -131,10 +123,6 @@ class MappingConfigTestCase(unittest.TestCase):
     def test_RamConfig_3level_ram_mode(self):
         rc = self.generate_3level_RamConfig()
         self.assertEqual(rc.ram_mode, RamMode.SinglePort)
-
-    def test_RamConfig_3level_is_simple(self):
-        rc = self.generate_3level_RamConfig()
-        self.assertFalse(rc.is_simple())
 
     def test_RamConfig_share_write_decoder_lut_count(self):
         rc_expected_str = '''0 416 22 LW 21 LD 72 parallel

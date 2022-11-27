@@ -76,9 +76,6 @@ class RamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigExt
     def get_physical_ram_count(self) -> Counter[int]:
         return self.lrc.get_physical_ram_count()
 
-    def is_simple(self) -> bool:
-        return self.lrc.prc is not None
-
 
 @dataclass
 class LogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):

@@ -13,6 +13,12 @@ class LogicalRamTestCase(unittest.TestCase):
         self.assertIn(RamMode.TrueDualPort, mode1)
         self.assertNotIn(RamMode.ROM, mode1)
 
+    def test_RamMode_num_ports(self):
+        self.assertEqual(RamMode.ROM.num_ports(), 1)
+        self.assertEqual(RamMode.SinglePort.num_ports(), 1)
+        self.assertEqual(RamMode.SimpleDualPort.num_ports(), 2)
+        self.assertEqual(RamMode.TrueDualPort.num_ports(), 2)
+
     def test_LogicalRam_from_str(self):
         self.assertEqual(
             LogicalRam.from_str('0	0	SimpleDualPort	45	12'),

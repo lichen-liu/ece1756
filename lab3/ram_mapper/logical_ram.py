@@ -13,6 +13,12 @@ class RamMode(Flag):
     SimpleDualPort = auto()  # R + W
     TrueDualPort = auto()  # R/W + R/W
 
+    def num_ports(self) -> int:
+        if self == self.ROM or self == self.SinglePort:
+            return 1
+        else:
+            return 2
+
 
 # Create a generic variable that can be 'LogicalRam', or any subclass.
 RamShapeT = TypeVar('RamShapeT', bound='RamShape')
