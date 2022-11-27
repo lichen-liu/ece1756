@@ -196,7 +196,7 @@ def generate_candidate_prc_for_lcs(ram_archs: Dict[int, SIVRamArch], logical_ram
 def generate_candidate_prc_for_rcs(ram_archs: Dict[int, SIVRamArch], ram_configs: Iterable[RamConfig], locator: PRCLocator) -> Dict[int, List[PRCCandidate]]:
     return {ram_config.ram_id:
             generate_candidate_prc_for_logical_shape(
-                ram_archs=ram_archs, logical_shape=locator.get_lrc_from_rc(ram_config).logical_shape, ram_mode=ram_config.get_ram_mode(), locator=locator)
+                ram_archs=ram_archs, logical_shape=locator.get_lrc_from_rc(ram_config).logical_shape, ram_mode=ram_config.ram_mode, locator=locator)
             for ram_config in ram_configs}
 
 
@@ -634,12 +634,12 @@ class SingleLevelCircuitInitialSolution(CircuitSolverBase):
             logical_shape=logical_ram.shape, prc=prc_candidate.prc), self.get_prc_candidate(logical_ram_id=logical_ram.ram_id))
 
         def area_estimator(lrc: LogicalRamConfig) -> int:
-            return calculate_fpga_qor_for_ram_config(ram_archs=self.ram_archs(), logic_block_count=0, logical_ram_config=lrc, skip_area=True).fpga_area
+            return calculate_fpga_qor_for_ram_config(ram_archs=self.ram_archs(), logic_block_count=0, logical_ram_config=lrc, ram_mode=logical_ram.mode, skip_area=True).fpga_area
         best_candidate_lrc = min(map(lambda lrc: (lrc, area_estimator(
             lrc)), candidate_lrc_list), key=lambda p: p[1])[0]
         # Finalize the best candidate
         best_candidate_lrc.prc.id = self.assign_physical_ram_uid()
-        return RamConfig(circuit_id=logical_ram.circuit_id, ram_id=logical_ram.ram_id, lrc=best_candidate_lrc)
+        return RamConfig(circuit_id=logical_ram.circuit_id, ram_id=logical_ram.ram_id, ram_mode=logical_ram.mode, lrc=best_candidate_lrc)
 
     def solve(self):
         self.circuit_config().rams.clear()

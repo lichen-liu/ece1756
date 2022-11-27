@@ -12,12 +12,9 @@ class MappingConfigTestCase(unittest.TestCase):
                                 ram_mode=RamMode.SimpleDualPort, physical_shape=RamShape(width=10, depth=64))
         lrc = LogicalRamConfig(
             logical_shape=RamShape(width=12, depth=45), prc=prc)
-        rc = RamConfig(circuit_id=1, ram_id=2, lrc=lrc)
+        rc = RamConfig(circuit_id=1, ram_id=2, lrc=lrc,
+                       ram_mode=RamMode.SimpleDualPort)
         return rc
-
-    def test_RamConfig_1level_verify(self):
-        rc = self.generate_1level_RamConfig()
-        self.assertTrue(rc.verify())
 
     def test_RamConfig_1level_serialize(self):
         rc = self.generate_1level_RamConfig()
@@ -32,17 +29,9 @@ class MappingConfigTestCase(unittest.TestCase):
         rc = self.generate_1level_RamConfig()
         self.assertDictEqual(rc.get_physical_ram_count(), Counter({1: 2}))
 
-    def test_RamConfig_1level_get_ram_mode(self):
+    def test_RamConfig_1level_ram_mode(self):
         rc = self.generate_1level_RamConfig()
-        self.assertEqual(rc.get_ram_mode(), RamMode.SimpleDualPort)
-
-    def test_RamConfig_verify_invalid(self):
-        def generate_rc0():
-            lrc = LogicalRamConfig(logical_shape=RamShape(width=12, depth=45))
-            rc = RamConfig(circuit_id=1, ram_id=2, lrc=lrc)
-            return rc
-        rc0 = generate_rc0()
-        self.assertFalse(rc0.verify())
+        self.assertEqual(rc.ram_mode, RamMode.SimpleDualPort)
 
     @staticmethod
     def generate_2level_RamConfig() -> RamConfig:
@@ -60,12 +49,9 @@ class MappingConfigTestCase(unittest.TestCase):
         lrc = LogicalRamConfig(logical_shape=RamShape(
             width=30, depth=1025), clrc=clrc)
 
-        rc = RamConfig(circuit_id=3, ram_id=7, lrc=lrc)
+        rc = RamConfig(circuit_id=3, ram_id=7, lrc=lrc,
+                       ram_mode=RamMode.SinglePort)
         return rc
-
-    def test_RamConfig_2level_verify(self):
-        rc = self.generate_2level_RamConfig()
-        self.assertTrue(rc.verify())
 
     def test_RamConfig_2level_serialize(self):
         rc = self.generate_2level_RamConfig()
@@ -83,9 +69,9 @@ class MappingConfigTestCase(unittest.TestCase):
         self.assertDictEqual(rc.get_physical_ram_count(),
                              Counter({1: 2, 2: 4}))
 
-    def test_RamConfig_2level_get_ram_mode(self):
+    def test_RamConfig_2level_ram_mode(self):
         rc = self.generate_2level_RamConfig()
-        self.assertEqual(rc.get_ram_mode(), RamMode.SinglePort)
+        self.assertEqual(rc.ram_mode, RamMode.SinglePort)
 
     @ staticmethod
     def generate_3level_RamConfig() -> RamConfig:
@@ -112,12 +98,9 @@ class MappingConfigTestCase(unittest.TestCase):
         lrc012 = LogicalRamConfig(
             logical_shape=RamShape(width=30, depth=8200), clrc=clrc012)
 
-        rc = RamConfig(circuit_id=3, ram_id=8, lrc=lrc012)
+        rc = RamConfig(circuit_id=3, ram_id=8, lrc=lrc012,
+                       ram_mode=RamMode.SinglePort)
         return rc
-
-    def test_RamConfig_3level_verify(self):
-        rc = self.generate_3level_RamConfig()
-        self.assertTrue(rc.verify())
 
     def test_RamConfig_3level_serialize(self):
         rc = self.generate_3level_RamConfig()
@@ -137,9 +120,9 @@ class MappingConfigTestCase(unittest.TestCase):
         self.assertDictEqual(rc.get_physical_ram_count(),
                              Counter({1: 4, 2: 14, 3: 1}))
 
-    def test_RamConfig_3level_get_ram_mode(self):
+    def test_RamConfig_3level_ram_mode(self):
         rc = self.generate_3level_RamConfig()
-        self.assertEqual(rc.get_ram_mode(), RamMode.SinglePort)
+        self.assertEqual(rc.ram_mode, RamMode.SinglePort)
 
     def test_RamConfig_share_write_decoder_lut_count(self):
         rc_expected_str = '''0 416 22 LW 21 LD 72 parallel
@@ -169,7 +152,8 @@ class MappingConfigTestCase(unittest.TestCase):
                 clrc=CombinedLogicalRamConfig(
                     split=RamSplitDimension.parallel,
                     lrc_l=lrc_l,
-                    lrc_r=lrc_r)))
+                    lrc_r=lrc_r)),
+            ram_mode=RamMode.SimpleDualPort)
         self.assertEqual(rc.serialize(0), rc_expected_str)
         self.assertEqual(rc.get_extra_lut_count(), 22)
 

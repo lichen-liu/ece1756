@@ -1,8 +1,10 @@
 from collections import Counter
 from dataclasses import dataclass, field
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import math
+
+from .logical_ram import RamMode
 
 from .mapping_config import CircuitConfig, LogicalRamConfig
 
@@ -124,11 +126,12 @@ def calculate_fpga_qor_for_circuit(ram_archs: Dict[int, SIVRamArch], logical_cir
     return qor
 
 
-def calculate_fpga_qor_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, logical_ram_config: LogicalRamConfig, skip_area: bool = False, verbose: bool = False) -> CircuitQor:
+def calculate_fpga_qor_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, logical_ram_config: LogicalRamConfig, ram_mode: RamMode, skip_area: bool = False, verbose: bool = False) -> CircuitQor:
     return calculate_fpga_qor(
         ram_archs=ram_archs,
         logic_block_count=logic_block_count,
-        extra_lut_count=logical_ram_config.get_extra_lut_count(),
+        extra_lut_count=logical_ram_config.get_extra_lut_count(
+            ram_mode=ram_mode),
         physical_ram_count=logical_ram_config.get_physical_ram_count(),
         skip_area=skip_area,
         verbose=verbose)
