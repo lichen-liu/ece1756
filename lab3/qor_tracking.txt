@@ -93,3 +93,7 @@
 # Use required LB as area during optimization
 1127:03:26:11.807 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
 1127:03:26:11.812 WARNING [driver.py] Total elapsed 403.530 seconds
+
+# Do not infer ram mode from physical ram
+1127:04:16:41.841 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.071272E+08
+1127:04:16:41.846 WARNING [driver.py] Total elapsed 418.954 seconds
