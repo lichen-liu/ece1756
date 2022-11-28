@@ -1,2 +1,0 @@
-Circuit	"# Logic blocks (N=10, k=6, fracturable)"			
-0	2941

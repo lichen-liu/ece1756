@@ -1,3 +1,0 @@
-// Num_Circuits 1
-// Circuit=0 Ram=0
-0 0 99 LW 30 LD 8200 ID 0 S 9 P 4 Type 2 Mode SinglePort W 8 D 1024
