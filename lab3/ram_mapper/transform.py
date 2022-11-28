@@ -239,7 +239,7 @@ class CircuitSolverBase:
         return assigned_value
 
     def msg_header(self) -> str:
-        return f'circuit {self.logical_circuit().circuit_id} {self._name}'
+        return f'C{self.logical_circuit().circuit_id} {self._name}'
 
 
 class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
