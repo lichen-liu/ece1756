@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 import copy
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from itertools import starmap
 import logging
 import math
@@ -114,15 +114,16 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
             circuit_config = solver.circuit_config()
             physical_ram_uid = solver.assign_physical_ram_uid()
 
-    # Share physical ram
-    solver = SharingCircuitOptimizer(
-        ram_archs=ram_archs,
-        logical_circuit=logical_circuit,
-        circuit_config=circuit_config,
-        physical_ram_uid=physical_ram_uid)
-    solver.solve()
-    circuit_config = solver.circuit_config()
-    # physical_ram_uid = solver.assign_physical_ram_uid()
+    if True:
+        # Share physical ram
+        solver = SharingCircuitOptimizer(
+            ram_archs=ram_archs,
+            logical_circuit=logical_circuit,
+            circuit_config=circuit_config,
+            physical_ram_uid=physical_ram_uid)
+        solver.solve()
+        circuit_config = solver.circuit_config()
+        # physical_ram_uid = solver.assign_physical_ram_uid()
 
     return circuit_config
 
@@ -374,14 +375,15 @@ class TemperatureScheduleParam(NamedTuple):
         return 0 if self.current_step == 0 else self.num_accepted/self.current_step
 
 
-class MoveOutcome(Enum):
+class MoveOutcome(IntEnum):
     ACCEPTED_AREA = auto()
+    ACCEPTED_LOCAL_AREA = auto()
     ACCEPTED_TEMPERATURE = auto()
     REJECTED_AREA = auto()
     ABORT_DUPLICATED = auto()
 
     def is_accepted(self) -> bool:
-        return self == self.ACCEPTED_AREA or self == self.ACCEPTED_TEMPERATURE
+        return self < self.REJECTED_AREA
 
 
 def area_str(initial_area: int, final_area: int, best_area: int) -> str:
@@ -508,7 +510,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                 prc=prc_new)
             if local_area_new < local_area_old:
                 apply_move()
-                return MoveOutcome.ACCEPTED_AREA
+                return MoveOutcome.ACCEPTED_LOCAL_AREA
 
         if should_accept_worse_func(area_new, area_old):
             apply_move()
@@ -611,7 +613,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'{self.msg_header()} ANNEAL: ' +
-            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas ' +
+            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas, ' +
             f'{area_stats}')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
@@ -820,4 +822,7 @@ class SharingCircuitOptimizer(CircuitSolverBase):
             provider_lrc.prc.ram_mode = RamMode.TrueDualPort
             receiver_lrc.prc = provider_lrc.prc
         logging.warning(
-            f'{self.msg_header()}: Shared {len(final_sharing_pairs)} logical rams, elminated {num_eliminated_physical_rams} physical rams')
+            f'{self.msg_header()}: Shared {len(final_sharing_pairs)} logical rams, ' +
+            f'eliminated {num_eliminated_physical_rams} physical rams. ' +
+            f'{len(single_port_lrc_dict)} single-port, ' +
+            f'{len(lrc_provider_list)} providers')
