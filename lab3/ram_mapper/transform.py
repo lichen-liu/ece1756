@@ -462,7 +462,23 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     def select_rc_to_move(self) -> RamConfig:
         return self.circuit_config().rams[self._rng.choice(list(self._prc_candidates.keys()))]
 
-    def propose_move(self, rc: RamConfig) -> PRCCandidate:
+    def propose_move(self, rc: RamConfig, is_targeted: bool) -> PRCCandidate:
+        if is_targeted:
+            # 5% probability
+            if self._rng.uniform(0, 1) < 0.05:
+                leftover_block_count = Counter()
+                for ram_arch_id, ram_arch in self.ram_archs().items():
+                    chip_block_count = ram_arch.get_block_count(
+                        self._fpga_area)
+                    leftover_block_count[ram_arch_id] = chip_block_count - \
+                        self._physical_ram_count[ram_arch_id]
+                target_ramarch_id, _ = leftover_block_count.most_common(n=1)[0]
+                candidates = list(filter(lambda candidate: candidate.prc.ram_arch_id ==
+                                         target_ramarch_id, self.get_prc_candidate(logical_ram_id=rc.ram_id)))
+                if len(candidates) > 0:
+                    return self._rng.choice(candidates)
+                # Counter will erase the key if count is 0
+
         # Randomly pick a new prc
         return self._rng.choice(
             self.get_prc_candidate(logical_ram_id=rc.ram_id))
@@ -543,7 +559,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         rc = self.select_rc_to_move()
 
         # Randomly pick a new prc
-        prc_candidate = self.propose_move(rc=rc)
+        prc_candidate = self.propose_move(rc=rc, is_targeted=True)
 
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 

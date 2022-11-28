@@ -129,3 +129,7 @@
 # Early exit in greedy
 1128:02:02:33.376 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
 1128:02:02:33.381 WARNING [driver.py] Total elapsed 230.050 seconds
+
+# 5% targeted move
+1128:03:05:45.539 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.045225E+08
+1128:03:05:45.544 WARNING [driver.py] Total elapsed 269.160 seconds
