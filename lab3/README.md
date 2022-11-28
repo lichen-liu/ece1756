@@ -1,8 +1,10 @@
 ## To Run `ram_mapper`
 ```bash
-python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -v
+# Default
+python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt
 ```
 ```bash
+# Profile in serial mode
 python3 -m cProfile -s cumtime -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt -j1
 ```
 
