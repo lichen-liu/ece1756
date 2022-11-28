@@ -9,7 +9,7 @@ import random
 from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
 
 
-from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config, calculate_ram_area
+from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
 
 from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
