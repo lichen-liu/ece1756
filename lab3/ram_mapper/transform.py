@@ -467,8 +467,10 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         # Calculate new area
         def extra_luts(prc: PhysicalRamConfig) -> int:
             return determine_extra_luts(num_series=prc.physical_shape_fit.num_series, logical_w=rc.lrc.logical_shape.width, ram_mode=rc.ram_mode)
+        prc_old_extra_luts = extra_luts(prc_old)
+        prc_new_extra_luts = extra_luts(prc_new)
         new_extra_lut_count = self._extra_lut_count - \
-            extra_luts(prc_old) + extra_luts(prc_new)
+            prc_old_extra_luts + prc_new_extra_luts
         new_physical_ram_count = self._physical_ram_count - \
             prc_old.get_physical_ram_count() + prc_new.get_physical_ram_count()
         area_new = self.calculate_fpga_area_fast(
@@ -494,9 +496,19 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             apply_move()
             return MoveOutcome.ACCEPTED_AREA
 
-        # TODO: what if area_new == area_old? Think of tie-breaking
         if area_new == area_old:
             self._zero_delta_fpga_area_counter += 1
+            local_area_old = calculate_ram_area(
+                ram_archs=self.ram_archs(),
+                extra_lut_count=prc_old_extra_luts,
+                prc=prc_old)
+            local_area_new = calculate_ram_area(
+                ram_archs=self.ram_archs(),
+                extra_lut_count=prc_new_extra_luts,
+                prc=prc_new)
+            if local_area_new < local_area_old:
+                apply_move()
+                return MoveOutcome.ACCEPTED_AREA
 
         if should_accept_worse_func(area_new, area_old):
             apply_move()
@@ -599,7 +611,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'{self.msg_header()} ANNEAL: ' +
-            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero deltas' +
+            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas ' +
             f'{area_stats}')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
