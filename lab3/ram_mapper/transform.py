@@ -6,7 +6,7 @@ from itertools import starmap
 import logging
 import math
 import random
-from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
+from typing import Callable, DefaultDict, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
 
 
 from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
@@ -709,11 +709,11 @@ class SharingCircuitOptimizer(CircuitSolverBase):
         return list(
             filter(can_be_provider, single_port_lrc_dict.values()))
 
-    def find_sharing_pairs(self, single_port_lrc_dict: Dict[int, LogicalRamConfig], lrc_provider_list: List[LogicalRamConfig]) -> Set[Tuple[float, int, int]]:
+    def find_sharing_pairs(self, single_port_lrc_dict: Dict[int, LogicalRamConfig], lrc_provider_list: List[LogicalRamConfig]) -> List[Tuple[float, int, int]]:
         provider_id_set = set(lrc.prc.id for lrc in lrc_provider_list)
         # Find possible pairs
         # (saved_area_per_bits, p_id, r_id)
-        sharing_pairs: Set[Tuple[float, int, int]] = set()
+        sharing_pairs: List[Tuple[float, int, int]] = list()
         for provider_lrc in lrc_provider_list:
             p_shape = provider_lrc.logical_shape
             p_physical_shape = provider_lrc.prc.physical_shape
@@ -756,24 +756,38 @@ class SharingCircuitOptimizer(CircuitSolverBase):
                     prc=receiver_lrc.prc)
 
                 saved_area = old_area - new_area
-                sharing_pairs.add(
+                sharing_pairs.append(
                     (saved_area/provider_free_bits, p_id, r_id))
         return sharing_pairs
 
-    def find_final_sharing_pairs(self, sharing_pairs: Set[Tuple[float, int, int]]) -> List[Tuple[float, int, int]]:
+    def find_final_sharing_pairs(self, sharing_pairs: List[Tuple[float, int, int]]) -> List[Tuple[float, int, int]]:
         # Determine final share list
         # (saved_area_per_bits, p_id, r_id)
         final_sharing_pairs: List[Tuple[float, int, int]] = list()
-        while len(sharing_pairs) > 0:
-            accepted_pair = max(sharing_pairs)
-            sharing_pairs.remove(accepted_pair)
-            final_sharing_pairs.append(accepted_pair)
 
-            _, p_id, r_id = accepted_pair
-            for other_pair in list(sharing_pairs):
-                _, other_p_id, other_r_id = other_pair
-                if other_p_id == p_id or other_p_id == r_id or other_r_id == p_id or other_r_id == r_id:
-                    sharing_pairs.remove(other_pair)
+        # {p_id: {(saving, r_id)}}
+        sharing_pairs_grouped: DefaultDict[int,
+                                           Set[Tuple[float, int]]] = defaultdict(set)
+        for saving, p_id, r_id in sharing_pairs:
+            sharing_pairs_grouped[p_id].add((saving, r_id))
+
+        while len(sharing_pairs_grouped) > 0:
+            p_id = min(
+                sharing_pairs_grouped.items(), key=lambda kv: len(kv[1]))[0]
+            candidates_for_p_id = sharing_pairs_grouped[p_id]
+            saving, r_id = max(candidates_for_p_id)
+            final_sharing_pairs.append((saving, p_id, r_id))
+
+            # Remove involved parties from sharing_pairs_grouped
+            for other_p_id, other_pairs in list(sharing_pairs_grouped.items()):
+                if other_p_id == p_id or other_p_id == r_id:
+                    sharing_pairs_grouped.pop(other_p_id)
+                else:
+                    for other_saving, other_r_id in other_pairs.copy():
+                        if other_r_id == p_id or other_r_id == r_id:
+                            other_pairs.remove((other_saving, other_r_id))
+                            if len(other_pairs) == 0:
+                                sharing_pairs_grouped.pop(other_p_id)
 
         return final_sharing_pairs
 

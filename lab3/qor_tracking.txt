@@ -117,3 +117,7 @@
 # Tie breaking in annealing
 1127:20:30:31.978 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050634E+08
 1127:20:30:31.983 WARNING [driver.py] Total elapsed 398.227 seconds
+
+# Sharing, providers with least candidates to share first
+1128:01:12:56.765 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
+1128:01:12:56.770 WARNING [driver.py] Total elapsed 322.714 seconds
