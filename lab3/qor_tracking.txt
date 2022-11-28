@@ -106,5 +106,10 @@
 1127:18:56:13.786 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.063683E+08
 1127:18:56:13.792 WARNING [driver.py] Total elapsed 534.719 seconds
 
+# Downscale exploration factor
 1127:19:16:56.347 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.064043E+08
 1127:19:16:56.352 WARNING [driver.py] Total elapsed 432.308 seconds
+
+# Refactor
+1127:20:03:36.360 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.064043E+08
+1127:20:03:36.365 WARNING [driver.py] Total elapsed 431.774 seconds

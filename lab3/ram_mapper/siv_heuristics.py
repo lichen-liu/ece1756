@@ -6,7 +6,7 @@ import math
 
 from .logical_ram import RamMode
 
-from .mapping_config import CircuitConfig, LogicalRamConfig
+from .mapping_config import CircuitConfig, LogicalRamConfig, PhysicalRamConfig
 
 from .logical_circuit import LogicalCircuit
 
@@ -138,3 +138,17 @@ def calculate_fpga_qor_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_bl
         physical_ram_count=logical_ram_config.get_physical_ram_count(),
         skip_area=skip_area,
         verbose=verbose)
+
+
+def calculate_ram_area(ram_archs: Dict[int, SIVRamArch], extra_lut_count: int, prc: Optional[PhysicalRamConfig]=None):
+    lb_arch = RegularLogicBlockArch()
+
+    extra_lb_count = lb_arch.get_block_count_from_luts(extra_lut_count)
+    regular_lb_area = extra_lb_count * lb_arch.get_area()
+
+    ram_area = 0
+    if prc is not None:
+        ram_count = prc.physical_shape_fit.get_count()
+        ram_area = ram_count * ram_archs[prc.ram_arch_id].get_area()
+
+    return regular_lb_area + ram_area

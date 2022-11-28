@@ -9,7 +9,7 @@ import random
 from typing import Callable, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
 
 
-from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config
+from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_circuit, calculate_fpga_qor_for_ram_config, calculate_ram_area
 
 from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
@@ -66,52 +66,53 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
     circuit_config = solver.circuit_config()
     physical_ram_uid = solver.assign_physical_ram_uid()
 
-    # Split RAM
-    solver = SingleLevelSplitRamCircuitOptimizer(
-        ram_archs=ram_archs,
-        logical_circuit=logical_circuit,
-        circuit_config=circuit_config,
-        physical_ram_uid=physical_ram_uid,
-    )
-    rc_split_width_list, _ = solver.solve()
-    circuit_config = solver.circuit_config()
-    physical_ram_uid = solver.assign_physical_ram_uid()
-
-    if len(rc_split_width_list) > 0:
-        # Incrementally improving
-        def merge_dict(dd, to_merge):
-            for k, v in to_merge.items():
-                dd[k].extend(v)
-        prc_candidates = defaultdict(list)
-        merge_dict(prc_candidates,
-                   generate_candidate_prc_for_rcs(
-                       ram_archs=ram_archs,
-                       ram_configs=rc_split_width_list,
-                       locator=TwoLevelRightPRCLocator()))
-        merge_dict(prc_candidates,
-                   generate_candidate_prc_for_rcs(
-                       ram_archs=ram_archs,
-                       ram_configs=rc_split_width_list,
-                       locator=TwoLevelLeftPRCLocator()))
-        splitted_ram_ids = set(rc.ram_id for rc in rc_split_width_list)
-        merge_dict(prc_candidates,
-                   generate_candidate_prc_for_rcs(
-                       ram_archs=ram_archs,
-                       ram_configs=filter(
-                           lambda rc: rc.ram_id not in splitted_ram_ids, circuit_config.rams.values()),
-                       locator=SingleLevelPRCLocator()))
-        solver = CandidateBasedCircuitOptimizer(
+    if True:
+        # Split RAM
+        solver = SingleLevelSplitRamCircuitOptimizer(
             ram_archs=ram_archs,
             logical_circuit=logical_circuit,
             circuit_config=circuit_config,
-            seed=circuit_config.circuit_id + num_circuits,
             physical_ram_uid=physical_ram_uid,
-            prc_candidates=prc_candidates,
-            name='L2',
-            enable_save_best=True)
-        solver.solve(effort_factor=1.0)
+        )
+        rc_split_width_list, _ = solver.solve()
         circuit_config = solver.circuit_config()
         physical_ram_uid = solver.assign_physical_ram_uid()
+
+        if len(rc_split_width_list) > 0:
+            # Incrementally improving
+            def merge_dict(dd, to_merge):
+                for k, v in to_merge.items():
+                    dd[k].extend(v)
+            prc_candidates = defaultdict(list)
+            merge_dict(prc_candidates,
+                       generate_candidate_prc_for_rcs(
+                           ram_archs=ram_archs,
+                           ram_configs=rc_split_width_list,
+                           locator=TwoLevelRightPRCLocator()))
+            merge_dict(prc_candidates,
+                       generate_candidate_prc_for_rcs(
+                           ram_archs=ram_archs,
+                           ram_configs=rc_split_width_list,
+                           locator=TwoLevelLeftPRCLocator()))
+            splitted_ram_ids = set(rc.ram_id for rc in rc_split_width_list)
+            merge_dict(prc_candidates,
+                       generate_candidate_prc_for_rcs(
+                           ram_archs=ram_archs,
+                           ram_configs=filter(
+                               lambda rc: rc.ram_id not in splitted_ram_ids, circuit_config.rams.values()),
+                           locator=SingleLevelPRCLocator()))
+            solver = CandidateBasedCircuitOptimizer(
+                ram_archs=ram_archs,
+                logical_circuit=logical_circuit,
+                circuit_config=circuit_config,
+                seed=circuit_config.circuit_id + num_circuits,
+                physical_ram_uid=physical_ram_uid,
+                prc_candidates=prc_candidates,
+                name='L2',
+                enable_save_best=True)
+            solver.solve(effort_factor=1.0)
+            circuit_config = solver.circuit_config()
+            physical_ram_uid = solver.assign_physical_ram_uid()
 
     # Share physical ram
     solver = SharingCircuitOptimizer(
@@ -417,6 +418,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             self._best_circuit_config_saved = copy.deepcopy(
                 self.circuit_config())
 
+        self._zero_delta_fpga_area_counter = 0
+
     def get_prc_candidate(self, logical_ram_id: int) -> List[PRCCandidate]:
         return self._prc_candidates[logical_ram_id]
 
@@ -492,6 +495,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             return MoveOutcome.ACCEPTED_AREA
 
         # TODO: what if area_new == area_old? Think of tie-breaking
+        if area_new == area_old:
+            self._zero_delta_fpga_area_counter += 1
 
         if should_accept_worse_func(area_new, area_old):
             apply_move()
@@ -594,7 +599,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'{self.msg_header()} ANNEAL: ' +
-            f'{steps_performed} steps finished (originally {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
+            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero deltas' +
             f'{area_stats}')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')
@@ -727,15 +732,16 @@ class SharingCircuitOptimizer(CircuitSolverBase):
                     r_logical_ram_mode)
                 old_extra_lut_count = receiver_lrc.get_extra_lut_count(
                     r_logical_ram_mode)
-                saved_extra_lb_count = self.lb_arch().get_block_count_from_luts(
-                    old_extra_lut_count - new_extra_lut_count)
-                saved_regular_lb_area = saved_extra_lb_count * self.lb_arch().get_area()
 
-                saved_ram_count = receiver_lrc.prc.physical_shape_fit.get_count()
-                saved_ram_area = saved_ram_count * \
-                    self.ram_arch(receiver_lrc.prc.ram_arch_id).get_area()
+                new_area = calculate_ram_area(
+                    ram_archs=self.ram_archs(),
+                    extra_lut_count=new_extra_lut_count)
+                old_area = calculate_ram_area(
+                    ram_archs=self.ram_archs(),
+                    extra_lut_count=old_extra_lut_count,
+                    prc=receiver_lrc.prc)
 
-                saved_area = saved_regular_lb_area + saved_ram_area
+                saved_area = old_area - new_area
                 sharing_pairs.add(
                     (saved_area/provider_free_bits, p_id, r_id))
         return sharing_pairs
