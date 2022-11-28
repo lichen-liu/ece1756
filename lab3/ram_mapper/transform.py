@@ -9,7 +9,7 @@ import random
 from typing import Callable, DefaultDict, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
 
 
-from .siv_heuristics import calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
+from .siv_heuristics import calculate_chip_leftover_ram_supply, calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
 
 from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
 from .utils import sorted_dict_items, proccess_initializer
@@ -442,6 +442,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
         self._fpga_area = self.calculate_tiles_fast(
             extra_lut_count=self._extra_lut_count, physical_ram_count=self._physical_ram_count)
+        self._leftover_ram_supply_count = calculate_chip_leftover_ram_supply(
+            ram_archs=self.ram_archs(), tile_count=self._fpga_area, block_usage=self._physical_ram_count)
 
     def switch_to_best_circuit_config(self):
         assert self._enable_save_best
@@ -466,13 +468,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         if is_targeted:
             # 40% probability
             if self._rng.uniform(0, 1) < 0.4:
-                leftover_block_count = Counter()
-                for ram_arch_id, ram_arch in self.ram_archs().items():
-                    chip_block_count = ram_arch.get_block_count(
-                        self._fpga_area)
-                    leftover_block_count[ram_arch_id] = chip_block_count - \
-                        self._physical_ram_count[ram_arch_id]
-                for target_ramarch_id, _ in leftover_block_count.most_common():
+                for target_ramarch_id, _ in self._leftover_ram_supply_count.most_common():
                     candidates = list(filter(lambda candidate: candidate.prc.ram_arch_id ==
                                              target_ramarch_id, self.get_prc_candidate(logical_ram_id=rc.ram_id)))
                     if len(candidates) > 0:
@@ -519,6 +515,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             self._extra_lut_count = new_extra_lut_count
             self._physical_ram_count = new_physical_ram_count
             self._fpga_area = area_new
+            self._leftover_ram_supply_count = calculate_chip_leftover_ram_supply(
+                ram_archs=self.ram_archs(), tile_count=self._fpga_area, block_usage=self._physical_ram_count)
             # Save the best circuit config
             if self._fpga_area < self._best_fpga_area_saved:
                 self._best_fpga_area_saved = self._fpga_area

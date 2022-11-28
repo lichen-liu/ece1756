@@ -140,7 +140,7 @@ def calculate_fpga_qor_for_ram_config(ram_archs: Dict[int, SIVRamArch], logic_bl
         verbose=verbose)
 
 
-def calculate_ram_area(ram_archs: Dict[int, SIVRamArch], extra_lut_count: int, prc: Optional[PhysicalRamConfig]=None):
+def calculate_ram_area(ram_archs: Dict[int, SIVRamArch], extra_lut_count: int, prc: Optional[PhysicalRamConfig] = None):
     lb_arch = RegularLogicBlockArch()
 
     extra_lb_count = lb_arch.get_block_count_from_luts(extra_lut_count)
@@ -152,3 +152,11 @@ def calculate_ram_area(ram_archs: Dict[int, SIVRamArch], extra_lut_count: int, p
         ram_area = ram_count * ram_archs[prc.ram_arch_id].get_area()
 
     return regular_lb_area + ram_area
+
+
+def calculate_chip_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int) -> Counter[int]:
+    return Counter({ram_arch.get_id(): ram_arch.get_block_count(tile_count) for ram_arch in ram_archs.values()})
+
+
+def calculate_chip_leftover_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int, block_usage: Counter[int]) -> Counter[int]:
+    return Counter({ram_arch.get_id(): ram_arch.get_block_count(tile_count)-block_usage[ram_arch.get_id()] for ram_arch in ram_archs.values()})
