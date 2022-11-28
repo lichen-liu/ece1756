@@ -153,9 +153,11 @@ def generate_default_128k_bram() -> BlockRamArch:
     return create_ram_arch_from_str(3, '-b 131072 128 300 1')
 
 
+DEFAULT_RAM_ARCH_STR = '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'
+
+
 def generate_default_ram_arch() -> Dict[int, SIVRamArch]:
-    return create_all_ram_arch_from_str(
-        '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1')
+    return create_all_ram_arch_from_str(DEFAULT_RAM_ARCH_STR)
 
 # When physical RAMs are combined in parallel to create a wider word, no extra logic is needed.
 # When physical RAMs are combined to implement a deeper RAM, extra logic is needed. If we combine R physical RAMs to make a logical RAM that is R times deeper than the maximum depth of the physical RAM, we will need to include extra logic to:
