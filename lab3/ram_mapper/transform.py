@@ -65,7 +65,6 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         name='L1')
     solver.solve()
     circuit_config = solver.circuit_config()
-    # should_continue = not solver.is_global_optimum()
     physical_ram_uid = solver.assign_physical_ram_uid()
 
     if should_continue and True:
