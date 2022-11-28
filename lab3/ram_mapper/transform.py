@@ -423,8 +423,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     def prepare_area_calculation_cache(self):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
-        # TODO: use fast version
-        self._fpga_area = self.calculate_fpga_area()
+        self._fpga_area = self.calculate_fpga_area_fast(
+            extra_lut_count=self._extra_lut_count, physical_ram_count=self._physical_ram_count)
 
     def switch_to_best_circuit_config(self):
         assert self._enable_save_best
@@ -511,14 +511,6 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
-    def calculate_fpga_area(self) -> int:
-        return calculate_fpga_qor_for_circuit(
-            ram_archs=self.ram_archs(),
-            logical_circuit=self.logical_circuit(),
-            circuit_config=self.circuit_config(),
-            allow_sharing=False,
-            skip_area=True).fpga_area
-
     def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
         return calculate_fpga_qor(
             ram_archs=self.ram_archs(),
@@ -530,7 +522,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     def solve(self, effort_factor: float = 1.0):
         # Hillclimb
         # -------param-------
-        exploration_factor = max(1, int(40 * effort_factor))
+        exploration_factor = max(1, int(20 * effort_factor))
         max_outer_loop = max(1, int(20 * effort_factor))
         initial_temperature = 50 * effort_factor
         target_acceptance_ratio = 0.1
