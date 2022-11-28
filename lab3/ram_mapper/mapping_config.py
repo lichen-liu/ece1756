@@ -1,13 +1,12 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import chain
 import logging
-from typing import Callable, Dict, Iterator, Optional
+from typing import Callable, Dict, Iterator, List, Optional
 from .physical_arch import RamShape
-from .utils import T, sorted_dict_items
+from .utils import list_add, list_set, sorted_dict_items
 from .logical_ram import RamMode, RamShapeFit
 from .siv_arch import accumulate_extra_luts, determine_extra_luts, determine_write_decoder_luts
 
@@ -53,7 +52,7 @@ class ConfigShape(ABC):
 
 class ConfigPhysicalRamCount(ABC):
     @abstractmethod
-    def get_physical_ram_count(self) -> Counter[int]:
+    def get_physical_ram_count(self) -> List[int]:
         '''
         {ram_arch_id: count}
         '''
@@ -82,7 +81,7 @@ class RamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, ConfigExt
     def get_extra_lut_count(self) -> int:
         return self.lrc.get_extra_lut_count(self.ram_mode)
 
-    def get_physical_ram_count(self) -> Counter[int]:
+    def get_physical_ram_count(self) -> List[int]:
         return self.lrc.get_physical_ram_count()
 
     def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
@@ -135,7 +134,7 @@ class LogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount, Co
                             write_luts=write_luts, read_luts=0, ram_mode=ram_mode)
             return lrc_l_extra_luts + lrc_r_extra_luts + clrc_extra_luts
 
-    def get_physical_ram_count(self) -> Counter[int]:
+    def get_physical_ram_count(self) -> List[int]:
         if self.prc is not None:
             return self.prc.get_physical_ram_count()
         else:
@@ -176,8 +175,8 @@ class CombinedLogicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamC
         else:
             return RamShape(width=lrc_l_shape.width+lrc_r_shape.width, depth=lrc_l_shape.depth)
 
-    def get_physical_ram_count(self) -> Counter[int]:
-        return self.lrc_l.get_physical_ram_count() + self.lrc_r.get_physical_ram_count()
+    def get_physical_ram_count(self) -> List[int]:
+        return list_add(self.lrc_l.get_physical_ram_count(), self.lrc_r.get_physical_ram_count())
 
     def execute_on_leaf(self, callback: Callable[[LogicalRamConfig]]):
         self.lrc_l.execute_on_leaf(callback)
@@ -198,8 +197,8 @@ class PhysicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
     def get_shape(self) -> RamShape:
         return RamShape(width=self.physical_shape_fit.num_parallel*self.physical_shape.width, depth=self.physical_shape_fit.num_series * self.physical_shape.depth)
 
-    def get_physical_ram_count(self) -> Counter[int]:
-        return Counter({self.ram_arch_id: self.physical_shape_fit.get_count()})
+    def get_physical_ram_count(self) -> List[int]:
+        return list_set(l=list(), idx=self.ram_arch_id, val=self.physical_shape_fit.get_count())
 
 
 @dataclass
@@ -221,21 +220,21 @@ class CircuitConfig(ConfigSerializer, ConfigPhysicalRamCount, ConfigExtraLutCoun
         assert rc.circuit_id == self.circuit_id
         self.rams[rc.ram_id] = rc
 
-    def get_physical_ram_count(self) -> Counter[int]:
-        c = Counter()
+    def get_physical_ram_count(self) -> List[int]:
+        c = list()
         for ram in self.rams.values():
-            c.update(ram.get_physical_ram_count())
+            c = list_add(c, ram.get_physical_ram_count())
         return c
 
-    def get_unique_physical_ram_count(self) -> Counter[int]:
+    def get_unique_physical_ram_count(self) -> List[int]:
         uid_prc_dict: Dict[int, PhysicalRamConfig] = dict()
 
         def visitor(lrc: LogicalRamConfig):
             uid_prc_dict[lrc.prc.id] = lrc.prc
         self.execute_on_leaf(visitor)
-        c = Counter()
+        c = list()
         for prc in uid_prc_dict.values():
-            c.update(prc.get_physical_ram_count())
+            c = list_add(c, prc.get_physical_ram_count())
         return c
 
     def get_extra_lut_count(self) -> int:

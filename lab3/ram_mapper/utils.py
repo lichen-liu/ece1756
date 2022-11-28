@@ -1,4 +1,5 @@
 from __future__ import annotations
+from operator import add, sub
 from timeit import default_timer
 from contextlib import contextmanager
 from collections import OrderedDict
@@ -38,6 +39,42 @@ def elapsed_timer():
     yield lambda: elapser()
     end = default_timer()
     def elapser(): return end-start
+
+
+def list_grow(l: List[int], size: int) -> List[int]:
+    to_grow = size - len(l)
+    if to_grow > 0:
+        l.extend([0] * to_grow)
+    return l
+
+
+def list_set(l: List[int], idx: int, val: int) -> List[int]:
+    list_grow(l=l, size=idx+1)
+    l[idx] = val
+    return l
+
+
+def list_get(l: List[int], idx: int) -> int:
+    list_grow(l=l, size=idx+1)
+    return l[idx]
+
+
+def list_add(l1: List[int], l2: List[int]) -> List[int]:
+    size = max(len(l1), len(l2))
+    list_grow(l=l1, size=size)
+    list_grow(l=l2, size=size)
+    return list(map(add, l1, l2))
+
+
+def list_sub(l1: List[int], l2: List[int]) -> List[int]:
+    size = max(len(l1), len(l2))
+    list_grow(l=l1, size=size)
+    list_grow(l=l2, size=size)
+    return list(map(sub, l1, l2))
+
+
+def list_items(l: list[int]) -> Iterator[Tuple[int, int]]:
+    return filter(lambda kv: kv[1] != 0, enumerate(l))
 
 
 def is_pow2(n: int) -> bool:

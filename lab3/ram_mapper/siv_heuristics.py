@@ -1,4 +1,3 @@
-from collections import Counter
 from dataclasses import dataclass, field
 import logging
 from typing import Dict, List, Optional
@@ -12,7 +11,7 @@ from .logical_circuit import LogicalCircuit
 
 from .physical_arch import ArchProperty, RamType
 
-from .utils import sorted_dict_items
+from .utils import list_get, list_items, list_set, list_sub, sorted_dict_items
 
 from .siv_arch import RegularLogicBlockArch, SIVRamArch
 
@@ -38,7 +37,7 @@ class CircuitQor:
         return '\t\t'.join(seq)
 
 
-def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: Counter[int], skip_area: bool = False, verbose: bool = False) -> CircuitQor:
+def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int, extra_lut_count: int, physical_ram_count: List[int], skip_area: bool = False, verbose: bool = False) -> CircuitQor:
     lb_arch = RegularLogicBlockArch()
 
     # Convert extra_lut_count + logic_block_count into regular_lb_used
@@ -57,7 +56,7 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
         logging.warning('Aspect Ratio:')
     lb_required = 0
     lutram_lb_used = 0
-    for ram_arch_id, ram_count in sorted_dict_items(physical_ram_count):
+    for ram_arch_id, ram_count in list_items(physical_ram_count):
         lb_to_ram_ratio = ram_archs[ram_arch_id].get_ratio_of_LB()
         min_lb_required = math.ceil(
             ram_count * lb_to_ram_ratio[0]/lb_to_ram_ratio[1])
@@ -96,7 +95,7 @@ def calculate_fpga_qor(ram_archs: Dict[int, SIVRamArch], logic_block_count: int,
         for arch_id, arch in sorted_dict_items(ram_archs):
             block_area = calculate_block_area(arch, lb_required_on_chip)
             fpga_area += block_area
-            ram_type_count_list.append(physical_ram_count.get(arch_id, 0))
+            ram_type_count_list.append(list_get(physical_ram_count, arch_id))
         fpga_area += calculate_block_area(lb_arch, lb_required_on_chip)
     else:
         if verbose:
@@ -154,9 +153,14 @@ def calculate_ram_area(ram_archs: Dict[int, SIVRamArch], extra_lut_count: int, p
     return regular_lb_area + ram_area
 
 
-def calculate_chip_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int) -> Counter[int]:
-    return Counter({ram_arch.get_id(): ram_arch.get_block_count(tile_count) for ram_arch in ram_archs.values()})
+def calculate_chip_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int) -> List[int]:
+    c = list()
+    for ram_arch in ram_archs.values():
+        list_set(c, ram_arch.get_id(), ram_arch.get_block_count(tile_count))
+    return c
 
 
-def calculate_chip_leftover_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int, block_usage: Counter[int]) -> Counter[int]:
-    return Counter({ram_arch.get_id(): ram_arch.get_block_count(tile_count)-block_usage[ram_arch.get_id()] for ram_arch in ram_archs.values()})
+def calculate_chip_leftover_ram_supply(ram_archs: Dict[int, SIVRamArch], tile_count: int, block_usage: List[int]) -> List[int]:
+    supply = calculate_chip_ram_supply(
+        ram_archs=ram_archs, tile_count=tile_count)
+    return list_sub(supply, block_usage)

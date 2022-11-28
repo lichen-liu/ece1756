@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 import copy
-from enum import Enum, IntEnum, auto
+from enum import IntEnum, auto
 from itertools import starmap
 import logging
 import math
@@ -12,7 +12,7 @@ from typing import Callable, DefaultDict, Dict, Iterable, Iterator, List, NamedT
 from .siv_heuristics import calculate_chip_leftover_ram_supply, calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
 
 from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
-from .utils import sorted_dict_items, proccess_initializer
+from .utils import list_add, list_items, list_sub, sorted_dict_items, proccess_initializer
 from .mapping_config import AllCircuitConfig, CircuitConfig, CombinedLogicalRamConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig, RamSplitDimension
 from .logical_circuit import LogicalCircuit
 from .siv_arch import RegularLogicBlockArch, SIVRamArch, determine_extra_luts
@@ -468,12 +468,11 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         if is_targeted:
             # 40% probability
             if self._rng.uniform(0, 1) < 0.4:
-                for target_ramarch_id, _ in self._leftover_ram_supply_count.most_common():
+                for target_ramarch_id, _ in sorted(enumerate(self._leftover_ram_supply_count), key=lambda kv: kv[1], reverse=True):
                     candidates = list(filter(lambda candidate: candidate.prc.ram_arch_id ==
                                              target_ramarch_id, self.get_prc_candidate(logical_ram_id=rc.ram_id)))
                     if len(candidates) > 0:
                         return self._rng.choice(candidates)
-                # Counter will erase the key if count is 0
 
         # Randomly pick a new prc
         return self._rng.choice(
@@ -502,8 +501,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         prc_new_extra_luts = extra_luts(prc_new)
         new_extra_lut_count = self._extra_lut_count - \
             prc_old_extra_luts + prc_new_extra_luts
-        new_physical_ram_count = self._physical_ram_count - \
-            prc_old.get_physical_ram_count() + prc_new.get_physical_ram_count()
+        new_physical_ram_count = list_add(list_sub(self._physical_ram_count,
+                                                   prc_old.get_physical_ram_count()),  prc_new.get_physical_ram_count())
         area_new = self.calculate_tiles_fast(
             extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
 
@@ -561,7 +560,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
-    def calculate_tiles_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
+    def calculate_tiles_fast(self, extra_lut_count: int, physical_ram_count: List[int]) -> int:
         return calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,

@@ -1,4 +1,3 @@
-from collections import Counter
 import unittest
 
 from .logical_ram import RamShape, RamShapeFit
@@ -27,7 +26,7 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_1level_get_physical_ram_count(self):
         rc = self.generate_1level_RamConfig()
-        self.assertDictEqual(rc.get_physical_ram_count(), Counter({1: 2}))
+        self.assertListEqual(rc.get_physical_ram_count(), [0, 2])
 
     def test_RamConfig_1level_ram_mode(self):
         rc = self.generate_1level_RamConfig()
@@ -76,8 +75,7 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_2level_get_physical_ram_count(self):
         rc = self.generate_2level_RamConfig()
-        self.assertDictEqual(rc.get_physical_ram_count(),
-                             Counter({1: 2, 2: 4}))
+        self.assertListEqual(rc.get_physical_ram_count(), [0, 2, 4])
 
     def test_RamConfig_2level_ram_mode(self):
         rc = self.generate_2level_RamConfig()
@@ -137,8 +135,7 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_RamConfig_3level_get_physical_ram_count(self):
         rc = self.generate_3level_RamConfig()
-        self.assertDictEqual(rc.get_physical_ram_count(),
-                             Counter({1: 4, 2: 14, 3: 1}))
+        self.assertListEqual(rc.get_physical_ram_count(), [0, 4, 14, 1])
 
     def test_RamConfig_3level_ram_mode(self):
         rc = self.generate_3level_RamConfig()
@@ -196,8 +193,7 @@ class MappingConfigTestCase(unittest.TestCase):
 
     def test_CircuitConfig_2_3_level_get_physical_ram_count(self):
         cc = self.generate_2_3_level_CircuitConfig()
-        self.assertDictEqual(cc.get_physical_ram_count(),
-                             Counter({1: 6, 2: 18, 3: 1}))
+        self.assertListEqual(cc.get_physical_ram_count(), [0, 6, 18, 1])
 
     def test_CircuitConfig_2_3_level_get_extra_lut_count(self):
         cc = self.generate_2_3_level_CircuitConfig()

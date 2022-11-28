@@ -1,5 +1,5 @@
 import unittest
-from .utils import highest_pow2_below, all_pow2_below, is_pow2, make_sorted_1d_dict, make_sorted_2d_dict
+from .utils import highest_pow2_below, all_pow2_below, is_pow2, list_add, list_get, list_grow, list_items, list_set, list_sub, make_sorted_1d_dict, make_sorted_2d_dict
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -48,3 +48,35 @@ class UtilsTestCase(unittest.TestCase):
         raw_dict = {6: 'a', 7: 'b', 3: 'c', 1: 'd', 5: 'e', 2: 'f', 0: 'g'}
         sorted_dict = make_sorted_1d_dict(raw_dict)
         self.assertListEqual(list(sorted_dict.keys()), [0, 1, 2, 3, 5, 6, 7])
+
+    def test_list_grow(self):
+        l = list_grow(list(), 5)
+        self.assertListEqual(l, [0]*5)
+        self.assertListEqual(list_grow(l, 7), [0]*7)
+
+    def test_list_set(self):
+        l = list_set(list(), 1, 2)
+        self.assertListEqual(l, [0, 2])
+        self.assertListEqual(list_set(l, 0, 1), [1, 2])
+
+    def test_list_get(self):
+        l = [1, 3]
+        self.assertEqual(list_get(l, 1), 3)
+        self.assertEqual(list_get(l, 2), 0)
+        self.assertListEqual(l, [1, 3, 0])
+
+    def test_list_add(self):
+        self.assertListEqual(list_add([0, 1], [1, 2, 3]), [1, 3, 3])
+        l = list()
+        self.assertListEqual(list_add([0, 1], l), [0, 1])
+        self.assertListEqual(l, [0, 0])
+
+    def test_list_sub(self):
+        self.assertListEqual(list_sub([0, 1], [1, 2, 3]), [-1, -1, -3])
+        l = list()
+        self.assertListEqual(list_sub([0, 1], l), [0, 1])
+        self.assertListEqual(l, [0, 0])
+
+    def test_items(self):
+        l = [1, 0, 2]
+        self.assertListEqual(list(list_items(l)), [(0, 1), (2, 2)])
