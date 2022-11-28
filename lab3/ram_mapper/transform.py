@@ -397,7 +397,16 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     Only perform moves for ram_id defined in prc_candidates, the relationship between rc -> prc must be provided by prc_candidates
     '''
 
-    def __init__(self, ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, seed: int, physical_ram_uid: int, prc_candidates: Dict[int, List[PRCCandidate]], name: str, enable_save_best: bool = False):
+    def __init__(self,
+                 ram_archs: Dict[int, SIVRamArch],
+                 logical_circuit: LogicalCircuit,
+                 circuit_config: CircuitConfig,
+                 seed: int,
+                 physical_ram_uid: int,
+                 prc_candidates: Dict[int, List[PRCCandidate]],
+                 name: str,
+                 allow_early_exit: bool = True,
+                 enable_save_best: bool = False):
         super().__init__(ram_archs=ram_archs,
                          logical_circuit=logical_circuit,
                          circuit_config=circuit_config,
@@ -420,6 +429,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             self._best_circuit_config_saved = copy.deepcopy(
                 self.circuit_config())
 
+        self._allow_early_exit = allow_early_exit
+
         self._zero_delta_fpga_area_counter = 0
 
     def get_prc_candidate(self, logical_ram_id: int) -> List[PRCCandidate]:
@@ -428,7 +439,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
     def prepare_area_calculation_cache(self):
         self._extra_lut_count = self.circuit_config().get_extra_lut_count()
         self._physical_ram_count = self.circuit_config().get_physical_ram_count()
-        self._fpga_area = self.calculate_fpga_area_fast(
+        self._fpga_area = self.calculate_tiles_fast(
             extra_lut_count=self._extra_lut_count, physical_ram_count=self._physical_ram_count)
 
     def switch_to_best_circuit_config(self):
@@ -438,6 +449,11 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             logging.info(
                 f'{self.msg_header()}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
             self.prepare_area_calculation_cache()
+
+    def can_early_exit(self, tiles_required: int) -> bool:
+        # Already achieved best possible FPGA area (i.e., the area that regular LBs from logical circuits need),
+        # no point in continuing
+        return self._allow_early_exit and tiles_required <= self.logical_circuit().num_logic_blocks
 
     def get_search_space_size(self) -> int:
         return self._candidate_prc_size
@@ -475,7 +491,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             prc_old_extra_luts + prc_new_extra_luts
         new_physical_ram_count = self._physical_ram_count - \
             prc_old.get_physical_ram_count() + prc_new.get_physical_ram_count()
-        area_new = self.calculate_fpga_area_fast(
+        area_new = self.calculate_tiles_fast(
             extra_lut_count=new_extra_lut_count, physical_ram_count=new_physical_ram_count)
 
         def apply_move():
@@ -530,13 +546,13 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         return self.evaluate_apply_move(rc=rc, prc_candidate=prc_candidate, should_accept_worse_func=should_accept_worse_func)
 
-    def calculate_fpga_area_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
+    def calculate_tiles_fast(self, extra_lut_count: int, physical_ram_count: Counter[int]) -> int:
         return calculate_fpga_qor(
             ram_archs=self.ram_archs(),
             logic_block_count=self.logical_circuit().num_logic_blocks,
             extra_lut_count=extra_lut_count,
             physical_ram_count=physical_ram_count,
-            skip_area=True).fpga_area
+            skip_area=True).required_logic_block_count
 
     def solve(self, effort_factor: float = 1.0):
         # Hillclimb
@@ -581,6 +597,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         total_steps_to_perform = 0
 
         start_area = self._fpga_area
+        do_early_exit = False
         for _ in range(max_outer_loop):
             total_steps_to_perform += num_steps
             for _ in range(num_steps):
@@ -600,6 +617,13 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                     outcome_stats[outcome] += 1
                 steps_performed += 1
 
+                if self.can_early_exit(tiles_required=self._fpga_area):
+                    do_early_exit = True
+                    break
+
+            if do_early_exit:
+                break
+
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
                 logging.info(
@@ -613,7 +637,8 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
             f'{self.msg_header()} ANNEAL: ' +
-            f'{steps_performed} steps done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas, ' +
+            f'{steps_performed} done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas, ' +
+            f'early_exited={do_early_exit}. ' +
             f'{area_stats}')
         if stats:
             logging.info(f'    Stats {str(outcome_stats)}')

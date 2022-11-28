@@ -121,3 +121,7 @@
 # Sharing, providers with least candidates to share first
 1128:01:12:56.765 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
 1128:01:12:56.770 WARNING [driver.py] Total elapsed 322.714 seconds
+
+# Early exit in annealing
+1128:01:32:46.406 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
+1128:01:32:46.411 WARNING [driver.py] Total elapsed 231.554 seconds
