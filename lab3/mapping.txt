@@ -8188,7 +8188,7 @@
 // Circuit=15 Ram=5
 15 5 0 LW 10 LD 128 ID 5 S 1 P 1 Type 2 Mode TrueDualPort W 16 D 512
 // Circuit=15 Ram=6
-15 6 0 LW 64 LD 2048 ID 6 S 1 P 1 Type 3 Mode SimpleDualPort W 64 D 2048
+15 6 0 LW 64 LD 2048 ID 6 S 1 P 16 Type 2 Mode SimpleDualPort W 4 D 2048
 // Circuit=15 Ram=7
 15 7 0 LW 8 LD 1024 ID 7 S 1 P 1 Type 2 Mode TrueDualPort W 8 D 1024
 // Circuit=15 Ram=8
@@ -8426,7 +8426,7 @@
 // Circuit=17 Ram=1
 17 1 0 LW 32 LD 256 ID 1 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=17 Ram=2
-17 2 0 LW 16 LD 256 ID 2 S 1 P 1 Type 2 Mode TrueDualPort W 16 D 512
+17 2 0 LW 16 LD 256 ID 2 S 1 P 1 Type 3 Mode TrueDualPort W 32 D 4096
 // Circuit=17 Ram=3
 17 3 0 LW 32 LD 256 ID 3 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=17 Ram=4
@@ -16026,21 +16026,23 @@
 // Circuit=42 Ram=9
 42 9 0 LW 33 LD 1088 ID 9 S 1 P 1 Type 3 Mode SimpleDualPort W 64 D 2048
 // Circuit=42 Ram=10
-42 10 0 LW 33 LD 1088 ID 10 S 1 P 1 Type 3 Mode SimpleDualPort W 64 D 2048
+42 10 0 LW 33 LD 1088 parallel
+    LW 28 LD 1088 ID 10 S 1 P 7 Type 2 Mode SimpleDualPort W 4 D 2048
+    LW 5 LD 1088 ID 32 S 1 P 2 Type 2 Mode SimpleDualPort W 4 D 2048
 // Circuit=42 Ram=11
 42 11 0 LW 57 LD 4 parallel
     LW 32 LD 4 ID 11 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
-    LW 25 LD 4 ID 32 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
+    LW 25 LD 4 ID 33 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=12
 42 12 0 LW 32 LD 12 ID 12 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=13
 42 13 0 LW 48 LD 4 parallel
     LW 32 LD 4 ID 13 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
-    LW 16 LD 4 ID 33 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
+    LW 16 LD 4 ID 34 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=14
 42 14 0 LW 104 LD 6 parallel
     LW 64 LD 6 ID 14 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
-    LW 40 LD 6 ID 34 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
+    LW 40 LD 6 ID 35 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=15
 42 15 0 LW 864 LD 6 ID 15 S 1 P 27 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=16
@@ -16056,7 +16058,7 @@
 // Circuit=42 Ram=21
 42 21 0 LW 104 LD 4 parallel
     LW 64 LD 4 ID 21 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
-    LW 40 LD 4 ID 35 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
+    LW 40 LD 4 ID 36 S 1 P 2 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=22
 42 22 0 LW 16 LD 11 ID 22 S 1 P 1 Type 2 Mode SimpleDualPort W 16 D 512
 // Circuit=42 Ram=23
@@ -16070,7 +16072,7 @@
 // Circuit=42 Ram=27
 42 27 0 LW 48 LD 5 parallel
     LW 32 LD 5 ID 27 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
-    LW 16 LD 5 ID 36 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
+    LW 16 LD 5 ID 37 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=28
 42 28 0 LW 32 LD 12 ID 28 S 1 P 1 Type 2 Mode SimpleDualPort W 32 D 256
 // Circuit=42 Ram=29

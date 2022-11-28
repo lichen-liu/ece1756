@@ -125,3 +125,7 @@
 # Early exit in annealing
 1128:01:32:46.406 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
 1128:01:32:46.411 WARNING [driver.py] Total elapsed 231.554 seconds
+
+# Early exit in greedy
+1128:02:02:33.376 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.050037E+08
+1128:02:02:33.381 WARNING [driver.py] Total elapsed 230.050 seconds

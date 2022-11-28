@@ -41,9 +41,10 @@ def solve_all_circuits(ram_archs: Dict[int, SIVRamArch], logical_circuits: Dict[
 
 
 def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: LogicalCircuit, num_circuits: int) -> CircuitConfig:
+    should_continue = True
+
     prc_candidates = generate_candidate_prc_for_lcs(
         ram_archs=ram_archs, logical_rams=logical_circuit.rams.values())
-
     # Generate an initial config
     solver = SingleLevelCircuitInitialSolution(
         ram_archs=ram_archs,
@@ -64,9 +65,10 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
         name='L1')
     solver.solve()
     circuit_config = solver.circuit_config()
+    # should_continue = not solver.is_global_optimum()
     physical_ram_uid = solver.assign_physical_ram_uid()
 
-    if True:
+    if should_continue and True:
         # Split RAM
         solver = SingleLevelSplitRamCircuitOptimizer(
             ram_archs=ram_archs,
@@ -114,7 +116,7 @@ def solve_single_circuit(ram_archs: Dict[int, SIVRamArch], logical_circuit: Logi
             circuit_config = solver.circuit_config()
             physical_ram_uid = solver.assign_physical_ram_uid()
 
-    if True:
+    if should_continue and True:
         # Share physical ram
         solver = SharingCircuitOptimizer(
             ram_archs=ram_archs,
@@ -450,10 +452,10 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                 f'{self.msg_header()}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
             self.prepare_area_calculation_cache()
 
-    def can_early_exit(self, tiles_required: int) -> bool:
+    def is_global_optimum(self) -> bool:
         # Already achieved best possible FPGA area (i.e., the area that regular LBs from logical circuits need),
         # no point in continuing
-        return self._allow_early_exit and tiles_required <= self.logical_circuit().num_logic_blocks
+        return self._allow_early_exit and self._fpga_area <= self.logical_circuit().num_logic_blocks
 
     def get_search_space_size(self) -> int:
         return self._candidate_prc_size
@@ -617,7 +619,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                     outcome_stats[outcome] += 1
                 steps_performed += 1
 
-                if self.can_early_exit(tiles_required=self._fpga_area):
+                if self.is_global_optimum():
                     do_early_exit = True
                     break
 
@@ -647,7 +649,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         is_converged = False
         convergence_loop_counter = 0
         num_accepted = 0
-
+        is_early_exited = False
         start_area = self._fpga_area
         while not is_converged:
             is_converged = True
@@ -660,14 +662,18 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                         is_converged = False
                         num_accepted += 1
             convergence_loop_counter += 1
+            if self.is_global_optimum():
+                is_converged = True
+                is_early_exited = True
 
         search_space_size = self.get_search_space_size()
         steps_performed = convergence_loop_counter * search_space_size
         area_stats = area_str(
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
         logging.warning(
-            f'{self.msg_header()} GREEDY: converged, ' +
-            f'{convergence_loop_counter} * {search_space_size} = {steps_performed} steps finished, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%) ' +
+            f'{self.msg_header()} GREEDY: ' +
+            f'{convergence_loop_counter}*{search_space_size}, {steps_performed} done, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), ' +
+            f'early_exited={is_early_exited}. ' +
             f'{area_stats}')
 
 
