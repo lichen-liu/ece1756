@@ -8,11 +8,14 @@ from pathlib import Path
 
 
 def run_ram_mapper(output_dir: Path, arch_str: str) -> float:
-    parser = argparse.ArgumentParser()
-    ram_mapper.init(parser)
-    output_path = output_dir.joinpath('mapping.txt')
-    fpga_area_geomean = ram_mapper.main(parser.parse_args(
-        ['--lb=logic_block_count.txt', '--lr=logical_rams.txt', f'--out={output_path}', f'--arch={arch_str}', '--quiet']))
+    with elapsed_timer() as elapsed:
+        parser = argparse.ArgumentParser()
+        ram_mapper.init(parser)
+        output_path = output_dir.joinpath('mapping.txt')
+        fpga_area_geomean = ram_mapper.main(parser.parse_args(
+            ['--lb=logic_block_count.txt', '--lr=logical_rams.txt', f'--out={output_path}', f'--arch={arch_str}', '--quiet']))
+
+    logging.warning(f'    Elapsed {elapsed():.3f} seconds')
     return fpga_area_geomean
 
 
@@ -50,11 +53,11 @@ def elapsed_timer():
     def elapser(): return end-start
 
 
-def main():
+def main(args):
     logging.basicConfig(
         format='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s',  datefmt='%m%d:%H:%M:%S', level=logging.INFO)
     with elapsed_timer() as elapsed:
-        run()
+        run(args)
     logging.warning(f'Total elapsed {elapsed():.3f} seconds')
 
 
@@ -62,10 +65,22 @@ def compose_bram_arch_str(bram_size: int, max_width: int, ratio: int) -> str:
     return f'-b {bram_size} {max_width} {ratio} 1'
 
 
-def run():
-    bram_size = 1024
+def init(parser):
+    parser.add_argument(
+        '--multiplier',
+        type=int,
+        required=True,
+        help='BRAM size multiplier')
 
-    suite_path = prepare_suite_dir(suite_name='B' + str(bram_size))
+
+def run(args):
+    bram_size_base = 1024
+
+    bram_size = bram_size_base * args.multiplier
+
+    suite_name = 'B' + str(bram_size)
+    logging.warning(f'{suite_name}')
+    suite_path = prepare_suite_dir(suite_name=suite_name)
 
     # run_name = 'default_arch'
     # arch_str = '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'
@@ -94,7 +109,7 @@ def run():
             candidate_idx += 1
 
     logging.warning('------------------------')
-    logging.warning('All done, results for bram_size {bram_size}')
+    logging.warning(f'All done, results for bram_size {bram_size}')
     logging.warning('[idx]\tarea\tmax_width\tratio')
     sorted_results = sorted(results)
     for idx, result in enumerate(sorted_results):
@@ -118,4 +133,6 @@ def run():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    init(parser)
+    main(parser.parse_args())
