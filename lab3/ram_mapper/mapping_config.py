@@ -198,7 +198,9 @@ class PhysicalRamConfig(ConfigSerializer, ConfigShape, ConfigPhysicalRamCount):
         return RamShape(width=self.physical_shape_fit.num_parallel*self.physical_shape.width, depth=self.physical_shape_fit.num_series * self.physical_shape.depth)
 
     def get_physical_ram_count(self) -> List[int]:
-        return list_set(l=list(), idx=self.ram_arch_id, val=self.physical_shape_fit.get_count())
+        l = [0] * (self.ram_arch_id + 1)
+        l[self.ram_arch_id] = self.physical_shape_fit.get_count()
+        return l
 
 
 @dataclass

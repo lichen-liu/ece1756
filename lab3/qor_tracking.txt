@@ -153,3 +153,7 @@
 # 40% targeted move
 1128:07:22:31.520 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.037739E+08
 1128:07:22:31.525 WARNING [driver.py] Total elapsed 448.881 seconds
+
+# Optimize
+1129:03:16:39.008 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.037739E+08
+1129:03:16:39.013 WARNING [driver.py] Total elapsed 351.438 seconds
