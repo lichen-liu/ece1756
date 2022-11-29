@@ -1,6 +1,7 @@
 # Final ug215 Solving for 69 circuits using 16 processes, 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz, 32GB RAM
-1128:18:01:21.130 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.037739E+08
-1128:18:01:21.134 WARNING [driver.py] Total elapsed 385.180 seconds
+python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt
+1129:03:52:56.427 WARNING [driver.py] Geometric Average Area for 69 circuits: 2.037739E+08
+1129:03:52:56.432 WARNING [driver.py] Total elapsed 312.610 seconds
 
 ug215:~/ece1756/lab3% ./checker -t -d logical_rams.txt logic_block_count.txt mapping.txt
 Default flag is set; default values are used
