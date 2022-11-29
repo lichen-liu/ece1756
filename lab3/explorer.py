@@ -86,11 +86,13 @@ def init(parser):
 
 
 def run(args):
+    use_lutram = True
     bram_size_base = 1024
-
     bram_size = bram_size_base * args.multiplier
 
-    suite_name = 'B' + str(bram_size)
+    suite_name = str(bram_size)
+    if use_lutram:
+        suite_name = 'LUTRAM_' + suite_name
     logging.warning(f'{suite_name}')
     suite_path = prepare_suite_dir(suite_name=suite_name)
 
@@ -107,8 +109,12 @@ def run(args):
     for max_width in max_width_candidates:
         for ratio in ratio_candidates:
             run_name = f'B{bram_size}_W{max_width}_R{ratio}'
+            if use_lutram:
+                run_name = 'LUTRAM_' + run_name
             arch_str = compose_bram_arch_str(
                 bram_size=bram_size, max_width=max_width, ratio=ratio)
+            if use_lutram:
+                arch_str = '-l 1 1 ' + arch_str
             logging.warning(
                 f'{candidate_idx}/{num_candidates} [{run_name}] Running: {arch_str}')
             run_path = prepare_run_dir(
@@ -133,6 +139,8 @@ def run(args):
     area, max_width, ratio, run_path = sorted_results[0]
     arch_str = compose_bram_arch_str(
         bram_size=bram_size, max_width=max_width, ratio=ratio)
+    if use_lutram:
+        arch_str = '-l 1 1 ' + arch_str
     mapping_file_path = run_path.joinpath('mapping.txt')
     checker_command = ['./checker', arch_str, '-t',
                        'logical_rams.txt', 'logic_block_count.txt', f'{mapping_file_path}']

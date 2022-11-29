@@ -256,3 +256,135 @@ python3 explorer.py --multiplier 128
 1129:05:57:35.753 WARNING [explorer.py] [7]     1.129655E+09    512     256
 1129:05:57:35.753 WARNING [explorer.py] [8]     1.183792E+09    1024    256
 1129:05:57:35.753 WARNING [explorer.py] ==========BEST==========
+
+
+
+
+LUTRAM
+
+python3 explorer.py --multiplier 1
+1129:06:44:30.805 WARNING [explorer.py] ------------------------
+1129:06:44:30.805 WARNING [explorer.py] All done, results for bram_size 1024
+1129:06:44:30.805 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:44:30.805 WARNING [explorer.py] [0]     2.405089E+08    4       1
+1129:06:44:30.805 WARNING [explorer.py] [1]     2.409572E+08    4       2
+1129:06:44:30.805 WARNING [explorer.py] [2]     2.462070E+08    8       2
+1129:06:44:30.805 WARNING [explorer.py] [3]     2.575982E+08    8       1
+1129:06:44:30.805 WARNING [explorer.py] [4]     2.678114E+08    16      2
+1129:06:44:30.805 WARNING [explorer.py] [5]     2.929808E+08    8       4
+1129:06:44:30.806 WARNING [explorer.py] [6]     2.950630E+08    16      1
+1129:06:44:30.806 WARNING [explorer.py] [7]     2.977543E+08    4       4
+1129:06:44:30.806 WARNING [explorer.py] [8]     3.049905E+08    16      4
+1129:06:44:30.806 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 2
+1129:06:45:43.674 WARNING [explorer.py] ------------------------
+1129:06:45:43.674 WARNING [explorer.py] All done, results for bram_size 2048
+1129:06:45:43.674 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:45:43.674 WARNING [explorer.py] [0]     2.153918E+08    4       2
+1129:06:45:43.674 WARNING [explorer.py] [1]     2.176142E+08    8       2
+1129:06:45:43.674 WARNING [explorer.py] [2]     2.281052E+08    8       4
+1129:06:45:43.674 WARNING [explorer.py] [3]     2.335168E+08    16      4
+1129:06:45:43.674 WARNING [explorer.py] [4]     2.347312E+08    16      2
+1129:06:45:43.674 WARNING [explorer.py] [5]     2.365099E+08    4       4
+1129:06:45:43.674 WARNING [explorer.py] [6]     2.481609E+08    4       1
+1129:06:45:43.674 WARNING [explorer.py] [7]     2.635364E+08    8       1
+1129:06:45:43.674 WARNING [explorer.py] [8]     2.987876E+08    16      1
+1129:06:45:43.674 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 4
+1129:06:49:08.182 WARNING [explorer.py] ------------------------
+1129:06:49:08.182 WARNING [explorer.py] All done, results for bram_size 4096
+1129:06:49:08.182 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:49:08.182 WARNING [explorer.py] [0]     2.041283E+08    8       4
+1129:06:49:08.182 WARNING [explorer.py] [1]     2.062987E+08    16      4
+1129:06:49:08.182 WARNING [explorer.py] [2]     2.219724E+08    16      8
+1129:06:49:08.182 WARNING [explorer.py] [3]     2.233635E+08    32      4
+1129:06:49:08.182 WARNING [explorer.py] [4]     2.260286E+08    8       2
+1129:06:49:08.182 WARNING [explorer.py] [5]     2.280567E+08    32      8
+1129:06:49:08.182 WARNING [explorer.py] [6]     2.297377E+08    8       8
+1129:06:49:08.182 WARNING [explorer.py] [7]     2.414990E+08    16      2
+1129:06:49:08.182 WARNING [explorer.py] [8]     2.767909E+08    32      2
+1129:06:49:08.182 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 8
+1129:06:52:45.596 WARNING [explorer.py] ------------------------
+1129:06:52:45.596 WARNING [explorer.py] All done, results for bram_size 8192
+1129:06:52:45.596 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:52:45.596 WARNING [explorer.py] [0]     1.990190E+08    16      8
+1129:06:52:45.596 WARNING [explorer.py] [1]     2.019859E+08    32      8
+1129:06:52:45.596 WARNING [explorer.py] [2]     2.144262E+08    16      4
+1129:06:52:45.596 WARNING [explorer.py] [3]     2.197050E+08    64      8
+1129:06:52:45.596 WARNING [explorer.py] [4]     2.226951E+08    32      16
+1129:06:52:45.596 WARNING [explorer.py] [5]     2.294536E+08    16      16
+1129:06:52:45.596 WARNING [explorer.py] [6]     2.301586E+08    32      4
+1129:06:52:45.596 WARNING [explorer.py] [7]     2.309438E+08    64      16
+1129:06:52:45.596 WARNING [explorer.py] [8]     2.654731E+08    64      4
+1129:06:52:45.596 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 16
+1129:06:56:07.533 WARNING [explorer.py] ------------------------
+1129:06:56:07.533 WARNING [explorer.py] All done, results for bram_size 16384
+1129:06:56:07.533 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:56:07.533 WARNING [explorer.py] [0]     2.012985E+08    32      16
+1129:06:56:07.533 WARNING [explorer.py] [1]     2.059872E+08    64      16
+1129:06:56:07.533 WARNING [explorer.py] [2]     2.077390E+08    16      8
+1129:06:56:07.533 WARNING [explorer.py] [3]     2.096003E+08    16      16
+1129:06:56:07.533 WARNING [explorer.py] [4]     2.096585E+08    32      8
+1129:06:56:07.533 WARNING [explorer.py] [5]     2.255666E+08    64      8
+1129:06:56:07.533 WARNING [explorer.py] [6]     2.504224E+08    16      4
+1129:06:56:07.533 WARNING [explorer.py] [7]     2.659746E+08    32      4
+1129:06:56:07.533 WARNING [explorer.py] [8]     3.006449E+08    64      4
+1129:06:56:07.533 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 32
+1129:07:03:38.641 WARNING [explorer.py] ------------------------
+1129:07:03:38.641 WARNING [explorer.py] All done, results for bram_size 32768
+1129:07:03:38.641 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:07:03:38.641 WARNING [explorer.py] [0]     2.095740E+08    64      32
+1129:07:03:38.641 WARNING [explorer.py] [1]     2.105348E+08    32      16
+1129:07:03:38.641 WARNING [explorer.py] [2]     2.131230E+08    64      16
+1129:07:03:38.641 WARNING [explorer.py] [3]     2.151677E+08    128     32
+1129:07:03:38.641 WARNING [explorer.py] [4]     2.151782E+08    32      32
+1129:07:03:38.641 WARNING [explorer.py] [5]     2.290004E+08    128     16
+1129:07:03:38.641 WARNING [explorer.py] [6]     2.449174E+08    32      8
+1129:07:03:38.641 WARNING [explorer.py] [7]     2.608565E+08    64      8
+1129:07:03:38.641 WARNING [explorer.py] [8]     2.958493E+08    128     8
+1129:07:03:38.641 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 64
+1129:07:00:51.514 WARNING [explorer.py] ------------------------
+1129:07:00:51.514 WARNING [explorer.py] All done, results for bram_size 65536
+1129:07:00:51.514 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:07:00:51.514 WARNING [explorer.py] [0]     2.205117E+08    64      32
+1129:07:00:51.514 WARNING [explorer.py] [1]     2.231628E+08    128     32
+1129:07:00:51.514 WARNING [explorer.py] [2]     2.271818E+08    32      32
+1129:07:00:51.514 WARNING [explorer.py] [3]     2.292844E+08    128     64
+1129:07:00:51.514 WARNING [explorer.py] [4]     2.309535E+08    64      64
+1129:07:00:51.514 WARNING [explorer.py] [5]     2.447153E+08    32      64
+1129:07:00:51.514 WARNING [explorer.py] [6]     2.479906E+08    32      16
+1129:07:00:51.514 WARNING [explorer.py] [7]     2.488662E+08    64      16
+1129:07:00:51.514 WARNING [explorer.py] [8]     2.634795E+08    128     16
+1129:07:00:51.514 WARNING [explorer.py] ==========BEST==========
+
+
+python3 explorer.py --multiplier 128
+1129:06:58:07.471 WARNING [explorer.py] ------------------------
+1129:06:58:07.471 WARNING [explorer.py] All done, results for bram_size 131072
+1129:06:58:07.471 WARNING [explorer.py] [idx]   area    max_width       ratio
+1129:06:58:07.471 WARNING [explorer.py] [0]     2.403825E+08    128     64
+1129:06:58:07.471 WARNING [explorer.py] [1]     2.444817E+08    64      64
+1129:06:58:07.471 WARNING [explorer.py] [2]     2.582112E+08    64      32
+1129:06:58:07.471 WARNING [explorer.py] [3]     2.595638E+08    128     32
+1129:06:58:07.471 WARNING [explorer.py] [4]     2.599279E+08    128     128
+1129:06:58:07.471 WARNING [explorer.py] [5]     2.629160E+08    32      64
+1129:06:58:07.471 WARNING [explorer.py] [6]     2.665427E+08    64      128
+1129:06:58:07.471 WARNING [explorer.py] [7]     2.688862E+08    32      32
+1129:06:58:07.471 WARNING [explorer.py] [8]     3.001473E+08    32      128
+1129:06:58:07.471 WARNING [explorer.py] ==========BEST==========
