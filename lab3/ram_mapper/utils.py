@@ -3,30 +3,15 @@ from operator import add, sub
 from timeit import default_timer
 from contextlib import contextmanager
 from collections import OrderedDict
-import logging
+from . import logger
 import math
 from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple, Type, TypeVar
 
 
-def init_logger(level=logging.DEBUG):
-    # Line number : ":%(lineno)d"
-    # TODO: set default to logging.INFO
-    logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s',
-                        datefmt='%m%d:%H:%M:%S', level=level)
-
-
-def verbosity_to_logging_level(verbose_count: int) -> int:
-    if verbose_count == 0:
-        return logging.WARNING
-    elif verbose_count == 1:
-        return logging.INFO
-    else:
-        return logging.DEBUG
-
-
 def proccess_initializer(args):
     # Logger setting for module execution mode
-    init_logger(verbosity_to_logging_level(args.verbose))
+    logger.init_logger(logger.verbosity_to_logging_level(
+        args.verbose, args.quiet))
 
 
 @contextmanager

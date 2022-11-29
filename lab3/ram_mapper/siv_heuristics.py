@@ -1,19 +1,14 @@
 from dataclasses import dataclass, field
-import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 import math
 
 from .logical_ram import RamMode
-
 from .mapping_config import CircuitConfig, LogicalRamConfig, PhysicalRamConfig
-
 from .logical_circuit import LogicalCircuit
-
 from .physical_arch import ArchProperty, RamType
-
 from .utils import list_get, list_items, list_set, list_sub, sorted_dict_items
-
 from .siv_arch import RegularLogicBlockArch, SIVArch, SIVRamArch
+from .logger import logger
 
 
 @dataclass
@@ -43,15 +38,15 @@ def calculate_fpga_qor(archs: SIVArch, logic_block_count: int, extra_lut_count: 
     regular_lb_used = logic_block_count+lb_for_extra_lut
 
     if verbose:
-        logging.warning('-----BEGIN calculate_fpga_area BEGIN-----')
-        logging.warning(
+        logger.warning('-----BEGIN calculate_fpga_area BEGIN-----')
+        logger.warning(
             f'Extra LUTs: {extra_lut_count} ({lb_for_extra_lut} LBs)')
-        logging.warning(
+        logger.warning(
             f'Regular LBs: {logic_block_count} + {lb_for_extra_lut} ({regular_lb_used} LBs)')
 
     # Find logic block required for aspect ratio of RAM type
     if verbose:
-        logging.warning('Aspect Ratio:')
+        logger.warning('Aspect Ratio:')
     lb_required = 0
     lutram_lb_used = 0
     for ram_arch_id, ram_count in list_items(physical_ram_count):
@@ -59,25 +54,25 @@ def calculate_fpga_qor(archs: SIVArch, logic_block_count: int, extra_lut_count: 
         min_lb_required = math.ceil(
             ram_count * lb_to_ram_ratio[0]/lb_to_ram_ratio[1])
         if verbose:
-            logging.warning(
+            logger.warning(
                 f'  {ram_count} {archs.ram_archs[ram_arch_id]} requires {min_lb_required} LBs')
         lb_required = max(lb_required, min_lb_required)
         if archs.ram_archs[ram_arch_id].get_ram_type() == RamType.LUTRAM:
             lutram_lb_used += ram_count
     if verbose:
-        logging.warning(f'LUTRAM LBs: {lutram_lb_used}')
-        logging.warning(
+        logger.warning(f'LUTRAM LBs: {lutram_lb_used}')
+        logger.warning(
             f'FPGA architecture needs at least {lb_required} LBs for aspect ratio')
 
     # Add LUTRAM to logic block required
     lb_required_on_chip = max(regular_lb_used + lutram_lb_used, lb_required)
     if verbose:
-        logging.warning(
+        logger.warning(
             f'FPGA architecture and logic circuit needs at least {lb_required_on_chip} LBs')
 
     # Determine FPGA area
     if verbose:
-        logging.warning('FPGA Area:')
+        logger.warning('FPGA Area:')
 
     fpga_area = 0
     ram_type_count_list = None
@@ -86,7 +81,7 @@ def calculate_fpga_qor(archs: SIVArch, logic_block_count: int, extra_lut_count: 
             chip_block_count = arch.get_block_count(total_lb_count)
             block_area = chip_block_count * arch.get_area()
             if verbose:
-                logging.warning(
+                logger.warning(
                     f'  {chip_block_count} {arch} has area of {block_area}')
             return block_area
         ram_type_count_list = list()
@@ -97,13 +92,13 @@ def calculate_fpga_qor(archs: SIVArch, logic_block_count: int, extra_lut_count: 
         fpga_area += calculate_block_area(archs.lb_arch, lb_required_on_chip)
     else:
         if verbose:
-            logging.warning('  Skipped')
+            logger.warning('  Skipped')
         # If area calculation is skipped, use lb_required_on_chip to represent area (propotional)
         fpga_area = lb_required_on_chip
 
     if verbose:
-        logging.warning(f'FPGA area is {fpga_area}')
-        logging.warning('-----END calculate_fpga_area END-----')
+        logger.warning(f'FPGA area is {fpga_area}')
+        logger.warning('-----END calculate_fpga_area END-----')
 
     return CircuitQor(ram_type_count_list=ram_type_count_list, regular_logic_block_count=regular_lb_used, required_logic_block_count=lb_required_on_chip, fpga_area=fpga_area)
 
@@ -111,7 +106,7 @@ def calculate_fpga_qor(archs: SIVArch, logic_block_count: int, extra_lut_count: 
 def calculate_fpga_qor_for_circuit(archs: SIVArch, logical_circuit: LogicalCircuit, circuit_config: CircuitConfig, allow_sharing: bool, skip_area: bool = False, verbose: bool = False) -> CircuitQor:
     assert logical_circuit.circuit_id == circuit_config.circuit_id
     if verbose:
-        logging.warning(f'| circuit_id={logical_circuit.circuit_id} |')
+        logger.warning(f'| circuit_id={logical_circuit.circuit_id} |')
 
     physical_ram_count = circuit_config.get_unique_physical_ram_count(
     ) if allow_sharing else circuit_config.get_physical_ram_count()

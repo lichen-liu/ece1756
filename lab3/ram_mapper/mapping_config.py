@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import chain
-import logging
 from typing import Callable, Dict, Iterator, List, Optional
 from .physical_arch import RamShape
+from .logger import logger
 from .utils import list_add, list_set, sorted_dict_items
 from .logical_ram import RamMode, RamShapeFit
 from .siv_arch import accumulate_extra_luts, determine_extra_luts, determine_write_decoder_luts
@@ -30,7 +30,7 @@ class ConfigSerializer(ABC):
         return iter(self.serialize(level).splitlines())
 
     def serialize_to_file(self, filename: str):
-        logging.info(f'Writing to {filename}')
+        logger.info(f'Writing to {filename}')
         with open(filename, 'w') as f:
             f.writelines(self.serialize_gen(0))
 

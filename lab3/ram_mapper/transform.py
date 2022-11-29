@@ -3,7 +3,6 @@ from collections import Counter, defaultdict
 import copy
 from enum import IntEnum, auto
 from itertools import starmap
-import logging
 import math
 import random
 from typing import Callable, DefaultDict, Dict, Iterable, Iterator, List, NamedTuple, Set, Tuple
@@ -11,8 +10,9 @@ from typing import Callable, DefaultDict, Dict, Iterable, Iterator, List, NamedT
 
 from .siv_heuristics import calculate_chip_leftover_ram_supply, calculate_fpga_qor, calculate_fpga_qor_for_ram_config, calculate_ram_area
 
+from .logger import logger
 from .logical_ram import LogicalRam, RamMode, RamShape, RamShapeFit
-from .utils import list_add, list_items, list_sub, sorted_dict_items, proccess_initializer
+from .utils import list_add, list_sub, sorted_dict_items, proccess_initializer
 from .mapping_config import AllCircuitConfig, CircuitConfig, CombinedLogicalRamConfig, LogicalRamConfig, PhysicalRamConfig, RamConfig, RamSplitDimension
 from .logical_circuit import LogicalCircuit
 from .siv_arch import RegularLogicBlockArch, SIVArch, SIVRamArch, determine_extra_luts
@@ -21,7 +21,7 @@ from multiprocessing import Pool
 
 def solve_all_circuits(archs: SIVArch, logical_circuits: Dict[int, LogicalCircuit], args) -> AllCircuitConfig:
     num_circuits = len(logical_circuits)
-    logging.warning(
+    logger.warning(
         f'Solving for {num_circuits} circuits using {args.processes} processes')
 
     acc = AllCircuitConfig()
@@ -308,7 +308,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         (rc_split_width_list, rc_split_depth_list)
         '''
         rc_split_width_list, rc_split_depth_list = self.split_cliff()
-        logging.warning(
+        logger.warning(
             f'{self.msg_header()}: Split {len(rc_split_width_list)} RAMs in width dimension (parallel)')
         return (rc_split_width_list, rc_split_depth_list)
 
@@ -335,19 +335,19 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                 continue
 
             if verbose:
-                logging.info(
+                logger.info(
                     f'{self.msg_header()}: RAM {ram_id} {rc.serialize(0)}')
-                logging.info(f'{self.msg_header()}:    physical:{prc.physical_shape} ' +
-                             f'total_physical:{total_physical_shape}, ' +
-                             f'logical:{logical_shape}, ' +
-                             f'wasted:{wasted_bits}, ' +
-                             f'extra_width:{extra_width}, extra_depth:{extra_depth}')
-                logging.info(
+                logger.info(f'{self.msg_header()}:    physical:{prc.physical_shape} ' +
+                            f'total_physical:{total_physical_shape}, ' +
+                            f'logical:{logical_shape}, ' +
+                            f'wasted:{wasted_bits}, ' +
+                            f'extra_width:{extra_width}, extra_depth:{extra_depth}')
+                logger.info(
                     f'{self.msg_header()}:    can_reduce_width={can_reduce_width}, can_reduce_depth={can_reduce_depth}')
 
             if can_reduce_width:
                 if verbose:
-                    logging.info(
+                    logger.info(
                         f'{self.msg_header()}:    Should split width')
                 split_width_list.append(rc)
                 # self.split_rc_by_width(rc=rc, cliff_num_parallel=max(
@@ -356,7 +356,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
                     rc, min(self._cliff_max_num_parallel, prc.physical_shape_fit.num_parallel-1))
             else:
                 if verbose:
-                    logging.info(
+                    logger.info(
                         f'{self.msg_header()}:    Should split depth')
                 split_depth_list.append(rc)
 
@@ -448,7 +448,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         assert self._enable_save_best
         if self._best_fpga_area_saved < self._fpga_area:
             self._circuit_config = self._best_circuit_config_saved
-            logging.info(
+            logger.info(
                 f'{self.msg_header()}: switch to best area config: {self._fpga_area} -> {self._best_fpga_area_saved}')
             self.prepare_area_calculation_cache()
 
@@ -580,7 +580,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         search_space_size = self.get_search_space_size()
         num_steps = search_space_size * exploration_factor
 
-        logging.info(
+        logger.info(
             f'{self.msg_header()} ANNEAL: {num_steps} steps ({exploration_factor} * {search_space_size}), starting at temperature {initial_temperature}')
 
         def temperature_schedule(param: TemperatureScheduleParam) -> float:
@@ -639,7 +639,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
             current_acceptance_ratio = num_accepted/steps_performed
             if current_acceptance_ratio > target_acceptance_ratio:
-                logging.info(
+                logger.info(
                     f'{self.msg_header()} ANNEAL: ' +
                     f'extended {num_steps} steps ({steps_performed} / {total_steps_to_perform+num_steps}) ' +
                     f'b/c acceptance ratio {current_acceptance_ratio} > target {target_acceptance_ratio} ' +
@@ -648,13 +648,13 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
                 break
         area_stats = area_str(
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
-        logging.warning(
+        logger.warning(
             f'{self.msg_header()} ANNEAL: ' +
             f'{steps_performed} done (was {num_steps}), {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), {self._zero_delta_fpga_area_counter} zero fpga-area deltas, ' +
             f'early_exited={do_early_exit}. ' +
             f'{area_stats}')
         if stats:
-            logging.info(f'    Stats {str(outcome_stats)}')
+            logger.info(f'    Stats {str(outcome_stats)}')
 
     def greedy(self):
         is_converged = False
@@ -681,7 +681,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         steps_performed = convergence_loop_counter * search_space_size
         area_stats = area_str(
             initial_area=start_area, final_area=self._fpga_area, best_area=self._best_fpga_area_saved)
-        logging.warning(
+        logger.warning(
             f'{self.msg_header()} GREEDY: ' +
             f'{convergence_loop_counter}*{search_space_size}, {steps_performed} done, {num_accepted} accepted ({num_accepted/steps_performed*100:.2f}%), ' +
             f'early_exited={is_early_exited}. ' +
@@ -837,37 +837,37 @@ class SharingCircuitOptimizer(CircuitSolverBase):
         # All possible lrc
         single_port_lrc_dict = self.find_single_port_lrcs()
         if verbose:
-            logging.warning(
+            logger.warning(
                 f'{self.msg_header()}: single-port LRC list: {len(single_port_lrc_dict)}')
             for lrc in single_port_lrc_dict.values():
-                logging.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
+                logger.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
 
         # All possible lrc provider
         lrc_provider_list = self.find_provider_lrcs(
             single_port_lrc_dict=single_port_lrc_dict)
         if verbose:
-            logging.info(
+            logger.info(
                 f'{self.msg_header()}: single-port LRC with extra depth list: {len(lrc_provider_list)}')
             for lrc in lrc_provider_list:
-                logging.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
+                logger.warning(f'{self.msg_header()}:  {lrc.serialize(0)}')
 
         # Find sharing pair candidates, along with its gain
         sharing_pairs = self.find_sharing_pairs(
             single_port_lrc_dict=single_port_lrc_dict, lrc_provider_list=lrc_provider_list)
         if verbose:
-            logging.info(
+            logger.info(
                 f'{self.msg_header()}: sharing_pairs (saved_area_per_free_provider_bits, provider, receiver): {len(sharing_pairs)}')
             for delta, p_id, r_id in sharing_pairs:
-                logging.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
+                logger.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
 
         # Find final sharing pairs
         final_sharing_pairs = self.find_final_sharing_pairs(
             sharing_pairs=sharing_pairs)
         if verbose:
-            logging.warning(
+            logger.warning(
                 f'{self.msg_header()}: final sharing_pairs (saved_area_per_free_provider_bits, provider, receiver): {len(final_sharing_pairs)}')
             for delta, p_id, r_id in final_sharing_pairs:
-                logging.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
+                logger.warning(f'{self.msg_header()}:  {delta} {p_id} {r_id}')
 
         # Apply final sharing pairs
         num_eliminated_physical_rams = 0
@@ -877,7 +877,7 @@ class SharingCircuitOptimizer(CircuitSolverBase):
             num_eliminated_physical_rams += receiver_lrc.prc.physical_shape_fit.get_count()
             provider_lrc.prc.ram_mode = RamMode.TrueDualPort
             receiver_lrc.prc = provider_lrc.prc
-        logging.warning(
+        logger.warning(
             f'{self.msg_header()}: Shared {len(final_sharing_pairs)} logical rams, ' +
             f'eliminated {num_eliminated_physical_rams} physical rams. ' +
             f'{len(single_port_lrc_dict)} single-port, ' +

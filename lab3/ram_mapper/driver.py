@@ -1,5 +1,4 @@
 import itertools
-import logging
 import os
 import statistics
 from typing import Iterable, List
@@ -9,6 +8,7 @@ from . import siv_heuristics
 from . import transform
 from . import logical_circuit
 from . import siv_arch
+from .logger import logger
 
 
 def init(parser):
@@ -36,6 +36,11 @@ def init(parser):
         default=0,
         help='Raise logging verbosity, default is Warning+')
     parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Only preserve Error messages'
+    )
+    parser.add_argument(
         '--processes', '-j',
         type=int,
         default=os.cpu_count(),
@@ -55,14 +60,15 @@ def init(parser):
     )
 
 
-def main(args):
+def main(args) -> float:
     utils.proccess_initializer(args)
 
-    logging.warning(f'{args}')
+    logger.warning(f'{args}')
 
     with utils.elapsed_timer() as elapsed:
-        run(args)
-    logging.warning(f'Total elapsed {elapsed():.3f} seconds')
+        fpga_area_geomean = run(args)
+    logger.warning(f'Total elapsed {elapsed():.3f} seconds')
+    return fpga_area_geomean
 
 
 def geomean_fpga_area(fpga_area_list: Iterable[int]) -> float:
@@ -76,7 +82,10 @@ def geomean_fpga_area(fpga_area_list: Iterable[int]) -> float:
 
 # python3 -m ram_mapper --lb=test0/logic_block_count.txt --lr=test0/logical_rams.txt --out=test0/mapping.txt
 
-def run(args):
+def run(args) -> float:
+    '''
+    Return fpga_area_geomean
+    '''
     logic_block_count_filename = args.lb
     logical_rams_filename = args.lr
     mapping_filename = args.out
@@ -92,10 +101,10 @@ def run(args):
 
     # Arch input
     archs = siv_arch.SIVArch.from_str(raw_checker_str=args.arch)
-    logging.warning('SIV Archs:')
+    logger.warning('SIV Archs:')
     for _, ram_arch in utils.sorted_dict_items(archs.ram_archs):
-        logging.warning(ram_arch)
-    logging.warning(archs.lb_arch)
+        logger.warning(ram_arch)
+    logger.warning(archs.lb_arch)
 
     # Mapping output
     acc = transform.solve_all_circuits(
@@ -106,8 +115,8 @@ def run(args):
 
     # Calculate FPGA QoR
     if len(args.report_circuit) > 0:
-        logging.warning('=================')
-        logging.warning('Final Area Report')
+        logger.warning('=================')
+        logger.warning('Final Area Report')
     print_report_circuit_for_all = -1 in args.report_circuit
     circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
     for circuit_id, cc in utils.sorted_dict_items(acc.circuits):
@@ -120,14 +129,15 @@ def run(args):
             verbose=print_report_circuit_for_all or (circuit_id in args.report_circuit))
         circuit_fpga_qor_list.append(circuit_fpga_qor)
     if len(args.report_circuit) > 0:
-        logging.warning('=================')
+        logger.warning('=================')
 
-    logging.warning(f'{siv_heuristics.CircuitQor.banner()}')
+    logger.warning(f'{siv_heuristics.CircuitQor.banner()}')
     for qor in circuit_fpga_qor_list:
-        logging.warning(f'{qor.serialize()}')
+        logger.warning(f'{qor.serialize()}')
 
     # Calculate FPGA area geomean
     fpga_area_geomean = geomean_fpga_area(
         map(lambda qor: qor.fpga_area, circuit_fpga_qor_list))
-    logging.warning(
+    logger.warning(
         f'Geometric Average Area for {len(circuit_fpga_qor_list)} circuits: {fpga_area_geomean:.6E}')
+    return fpga_area_geomean

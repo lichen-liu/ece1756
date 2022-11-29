@@ -2,8 +2,8 @@ import math
 from typing import Iterator, NamedTuple, OrderedDict, TypeVar, Type
 from collections import OrderedDict, defaultdict
 from enum import Flag, auto
-import logging
 
+from .logger import logger
 from .utils import make_sorted_2d_dict
 
 
@@ -77,7 +77,7 @@ class LogicalRam(NamedTuple):
                 mode=RamMode[mode_str],
                 shape=RamShape(depth=int(depth_str), width=int(width_str)))
         except ValueError:
-            logging.error(
+            logger.error(
                 f'Invalid str to parse for LogicalRam: {logical_ram_as_str}')
             raise
 
@@ -94,14 +94,14 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
     num_circuits = int(num_circuits_str)
     # line 1: Circuit	RamID	Mode		Depth	Width
     second_line = next(lines_iter).strip()
-    logging.debug('parse_grouped_LogicalRam')
-    logging.debug(f'  first_line={first_line}')
-    logging.debug(f'  num_circuits={num_circuits}')
-    logging.debug(f'  second_line={second_line}')
+    logger.debug('parse_grouped_LogicalRam')
+    logger.debug(f'  first_line={first_line}')
+    logger.debug(f'  num_circuits={num_circuits}')
+    logger.debug(f'  second_line={second_line}')
     # Rest of lines
     logical_rams = [LogicalRam.from_str(line.strip())
                     for line in lines_iter if line.strip() != '']
-    logging.debug(f'  len(logical_rams)={len(logical_rams)}')
+    logger.debug(f'  len(logical_rams)={len(logical_rams)}')
 
     lr_by_circuitid_by_ramid = defaultdict(lambda: defaultdict(LogicalRam))
     for lr in logical_rams:
@@ -109,7 +109,7 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
 
     # Sort by key
     lr_by_circuitid_by_ramid = make_sorted_2d_dict(lr_by_circuitid_by_ramid)
-    logging.debug(
+    logger.debug(
         f'  num_circuits(After grouping)={len(lr_by_circuitid_by_ramid)}')
 
     assert len(
@@ -119,6 +119,6 @@ def parse_grouped_LogicalRam(lines_iter: Iterator[str]) -> OrderedDict[int, Orde
 
 
 def read_grouped_LogicalRam_from_file(filename: str) -> OrderedDict[int, OrderedDict[int, LogicalRam]]:
-    logging.info(f'Reading from {filename}')
+    logger.info(f'Reading from {filename}')
     with open(filename, 'r') as f:
         return parse_grouped_LogicalRam(iter(f.readline, ''))
