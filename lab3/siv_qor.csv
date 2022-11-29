@@ -1,4 +1,4 @@
-Circuit,LUTRAM Blocks Used,8K BRAMs Used,128K BRAMs Used,Regular LBs Used,Required LB Tiles in Chip,Total FPGA Area
+Circuit,LUTRAMs,8K BRAMs,128K BRAMs,Regular LBs,Required LB Tiles,Total FPGA Area
 Circuit 0,798,365,12,2946,3744,1.86717e+08
 Circuit 1,1512,464,15,3121,4640,2.31559e+08
 Circuit 2,0,62,0,1836,1836,9.16224e+07
