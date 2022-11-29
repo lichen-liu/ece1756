@@ -71,6 +71,18 @@ def init(parser):
         type=int,
         required=True,
         help='BRAM size multiplier')
+    parser.add_argument(
+        '--width',
+        type=int,
+        required=True,
+        nargs='+',
+        help='List of max width candidates')
+    parser.add_argument(
+        '--ratio',
+        type=int,
+        required=True,
+        nargs='+',
+        help='List of ratio candidates')
 
 
 def run(args):
@@ -85,8 +97,8 @@ def run(args):
     # run_name = 'default_arch'
     # arch_str = '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'
 
-    max_width_candidates = [8, 64, 256, 1024]
-    ratio_candidates = [1, 5, 25, 200]
+    max_width_candidates = args.width
+    ratio_candidates = args.ratio
 
     candidate_idx = 0
     num_candidates = len(max_width_candidates) * len(ratio_candidates)
