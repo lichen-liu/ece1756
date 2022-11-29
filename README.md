@@ -23,4 +23,5 @@ run -all # Run simulation to completion which is OK because the testbench applie
 ```
 
 ## Lab3
+Report: [LATEX](https://www.overleaf.com/project/638634f26e8285973ebd62c8)
 Refer to: [README](lab3/README.md)
