@@ -131,7 +131,8 @@ def run(args) -> float:
     if len(args.report_circuit) > 0:
         logger.warning('=================')
 
-    logger.warning(f'{siv_heuristics.CircuitQor.banner()}')
+    qor_banner = siv_heuristics.CircuitQor.banner(len(archs.ram_archs))
+    logger.warning(f'{qor_banner}')
     for qor in circuit_fpga_qor_list:
         logger.warning(f'{qor.serialize()}')
 
