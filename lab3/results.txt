@@ -388,3 +388,24 @@ python3 explorer.py --multiplier 128
 1129:06:58:07.471 WARNING [explorer.py] [7]     2.688862E+08    32      32
 1129:06:58:07.471 WARNING [explorer.py] [8]     3.001473E+08    32      128
 1129:06:58:07.471 WARNING [explorer.py] ==========BEST==========
+
+
+
+
+
+
+
+
+
+
+
+
+
+1129:11:05:29.176 WARNING [driver.py] Geometric Average Area for 69 circuits: 1.939929E+08
+1129:11:05:29.181 WARNING [driver.py] Total elapsed 193.276 seconds
+ug216:~/ece1756/lab3% python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt --arch="-l 4 1 -b 8192 16 8 1"
+
+
+1129:12:02:04.572 WARNING [driver.py] Geometric Average Area for 69 circuits: 1.947459E+08
+1129:12:02:04.577 WARNING [driver.py] Total elapsed 306.139 seconds
+ug211:~/ece1756/lab3% python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt --arch="-l 3 1 -b 8192 16 8 1 -b 65536 64 300 1"
