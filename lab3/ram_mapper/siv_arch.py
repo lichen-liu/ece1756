@@ -1,6 +1,7 @@
+from __future__ import annotations
 import math
 from abc import abstractmethod
-from typing import Dict, List, Tuple
+from typing import Dict, List, NamedTuple, Tuple, Type
 from . import utils
 from .logical_ram import RamMode, RamShape
 from .physical_arch import ArchProperty, RamArch, RamType
@@ -87,6 +88,9 @@ class RegularLogicBlockArch(ArchProperty):
     For regular (non-LUTRAM) LB
     '''
 
+    def __init__(self, ratio_of_LB: Tuple[int, int]):
+        self._ratio_of_LB = ratio_of_LB
+
     def get_area(self) -> int:
         return 35000
 
@@ -94,7 +98,8 @@ class RegularLogicBlockArch(ArchProperty):
         '''
         ratio of logic block to regular (non-LUTRAM) LB
         '''
-        return (2, 1)
+        # return (2, 1)
+        return self._ratio_of_LB
 
     def get_block_count(self, LB_count: int) -> int:
         lb_to_block_ratio = self.get_ratio_of_LB()
@@ -156,8 +161,25 @@ def generate_default_128k_bram() -> BlockRamArch:
 DEFAULT_RAM_ARCH_STR = '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'
 
 
-def generate_default_ram_arch() -> Dict[int, SIVRamArch]:
-    return create_all_ram_arch_from_str(DEFAULT_RAM_ARCH_STR)
+class SIVArch(NamedTuple):
+    ram_archs: Dict[int, SIVRamArch]
+    lb_arch: RegularLogicBlockArch
+
+    @classmethod
+    def from_str(cls: Type[SIVArch], raw_checker_str: str) -> SIVArch:
+        ram_archs = create_all_ram_arch_from_str(
+            raw_checker_str=raw_checker_str)
+
+        ratio_of_LB_for_regular_lb = (1, 1)
+        for ram_arch in ram_archs.values():
+            if ram_arch.get_ram_type() == RamType.LUTRAM:
+                lratio_of_LB_for_lutram = ram_arch.get_ratio_of_LB()
+                ratio_of_LB_for_regular_lb = (
+                    lratio_of_LB_for_lutram[0], lratio_of_LB_for_lutram[0]-lratio_of_LB_for_lutram[1])
+
+        lb_arch = RegularLogicBlockArch(ratio_of_LB=ratio_of_LB_for_regular_lb)
+
+        return SIVArch(ram_archs=ram_archs, lb_arch=lb_arch)
 
 # When physical RAMs are combined in parallel to create a wider word, no extra logic is needed.
 # When physical RAMs are combined to implement a deeper RAM, extra logic is needed. If we combine R physical RAMs to make a logical RAM that is R times deeper than the maximum depth of the physical RAM, we will need to include extra logic to:

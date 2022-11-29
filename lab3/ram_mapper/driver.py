@@ -47,6 +47,12 @@ def init(parser):
         default=None,
         help='The max number of circuits to process, default is all'
     )
+    parser.add_argument(
+        '--arch',
+        type=str,
+        default=siv_arch.DEFAULT_RAM_ARCH_STR,
+        help='Architecture descrption string'
+    )
 
 
 def main(args):
@@ -85,14 +91,15 @@ def run(args):
             utils.sorted_dict_items(lcs), args.circuits))
 
     # Arch input
-    ram_archs = siv_arch.generate_default_ram_arch()
-    logging.info('RAM Archs:')
-    for _, ram_arch in utils.sorted_dict_items(ram_archs):
-        logging.info(ram_arch)
+    archs = siv_arch.SIVArch.from_str(raw_checker_str=args.arch)
+    logging.warning('SIV Archs:')
+    for _, ram_arch in utils.sorted_dict_items(archs.ram_archs):
+        logging.warning(ram_arch)
+    logging.warning(archs.lb_arch)
 
     # Mapping output
     acc = transform.solve_all_circuits(
-        ram_archs=ram_archs, logical_circuits=lcs, args=args)
+        archs=archs, logical_circuits=lcs, args=args)
     assert len(acc.circuits) == len(
         lcs), 'Final mapping result must contain same number of circuits as logical_ram input'
     acc.serialize_to_file(mapping_filename)
@@ -105,7 +112,7 @@ def run(args):
     circuit_fpga_qor_list: List[siv_heuristics.CircuitQor] = list()
     for circuit_id, cc in utils.sorted_dict_items(acc.circuits):
         circuit_fpga_qor = siv_heuristics.calculate_fpga_qor_for_circuit(
-            ram_archs=ram_archs,
+            archs=archs,
             logical_circuit=lcs[circuit_id],
             circuit_config=cc,
             allow_sharing=True,

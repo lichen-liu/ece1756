@@ -82,9 +82,12 @@ class SIVArchTestCase(unittest.TestCase):
         self.assertEqual(determine_extra_luts(
             num_series=8, logical_w=30, ram_mode=RamMode.TrueDualPort), 2*(3*30 + 8))
 
-    def test_generate_default_arch(self):
-        self.assertDictEqual(generate_default_ram_arch(), {1: generate_default_lutram(
+    def test_SIVArch_from_str(self):
+        archs = SIVArch.from_str(DEFAULT_RAM_ARCH_STR)
+        self.assertDictEqual(archs.ram_archs, {1: generate_default_lutram(
         ), 2: generate_default_8k_bram(), 3: generate_default_128k_bram()})
+        self.assertEqual(RegularLogicBlockArch(
+            ratio_of_LB=(2, 1)), archs.lb_arch)
 
     def test_default_lutram_area(self):
         self.assertEqual(generate_default_lutram().get_area(), 40000)
@@ -96,4 +99,5 @@ class SIVArchTestCase(unittest.TestCase):
         self.assertEqual(generate_default_128k_bram().get_area(), 850543)
 
     def test_logic_block_area(self):
-        self.assertEqual(RegularLogicBlockArch().get_area(), 35000)
+        self.assertEqual(RegularLogicBlockArch(
+            ratio_of_LB=(2, 1)).get_area(), 35000)
