@@ -417,6 +417,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
 
         # Search space
         self._prc_candidates = prc_candidates
+        self._prc_candidates_ram_ids = list(prc_candidates.keys())
         self._candidate_prc_size = sum(
             map(lambda prc_list: len(prc_list), prc_candidates.values()))
 
@@ -461,7 +462,7 @@ class CandidateBasedCircuitOptimizer(CircuitSolverBase):
         return self._candidate_prc_size
 
     def select_rc_to_move(self) -> RamConfig:
-        return self.circuit_config().rams[self._rng.choice(list(self._prc_candidates.keys()))]
+        return self.circuit_config().rams[self._rng.choice(self._prc_candidates_ram_ids)]
 
     def propose_move(self, rc: RamConfig, is_targeted: bool) -> PRCCandidate:
         if is_targeted:
