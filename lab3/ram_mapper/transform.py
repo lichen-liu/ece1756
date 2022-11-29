@@ -309,7 +309,7 @@ class SingleLevelSplitRamCircuitOptimizer(CircuitSolverBase):
         '''
         rc_split_width_list, rc_split_depth_list = self.split_cliff()
         logging.warning(
-            f'{self.msg_header()}: Split {len(rc_split_width_list)} RAMs in width dimension (in parallel)')
+            f'{self.msg_header()}: Split {len(rc_split_width_list)} RAMs in width dimension (parallel)')
         return (rc_split_width_list, rc_split_depth_list)
 
     def split_cliff(self,  verbose: bool = False) -> Tuple[List[RamConfig], List[RamConfig]]:
