@@ -10,9 +10,9 @@ from pathlib import Path
 def run_ram_mapper(output_dir: Path, arch_str: str) -> float:
     parser = argparse.ArgumentParser()
     ram_mapper.init(parser)
-    output_path = output_dir.joinpath('output.txt')
+    output_path = output_dir.joinpath('mapping.txt')
     fpga_area_geomean = ram_mapper.main(parser.parse_args(
-        ['--lb=logic_block_count.txt', '--lr=logical_rams.txt', f'--out={output_path}', f'--arch={arch_str}']))
+        ['--lb=logic_block_count.txt', '--lr=logical_rams.txt', f'--out={output_path}', f'--arch={arch_str}', '--quiet']))
     return fpga_area_geomean
 
 
@@ -70,8 +70,9 @@ def run():
     # run_name = 'default_arch'
     # arch_str = '-l 1 1 -b 8192 32 10 1 -b 131072 128 300 1'
 
-    max_width_candidates = [8, 32, 128, 256, 1024]
-    ratio_candidates = [1, 2, 10, 50, 200]
+    max_width_candidates = [8, 64, 256, 1024]
+    ratio_candidates = [1, 5, 25, 200]
+
     candidate_idx = 0
     num_candidates = len(max_width_candidates) * len(ratio_candidates)
 
@@ -105,12 +106,14 @@ def run():
     area, max_width, ratio, run_path = sorted_results[0]
     arch_str = compose_bram_arch_str(
         bram_size=bram_size, max_width=max_width, ratio=ratio)
-    mapping_file_path = run_path.joinpath('output.txt')
+    mapping_file_path = run_path.joinpath('mapping.txt')
     checker_command = ['./checker', arch_str, '-t',
                        'logical_rams.txt', 'logic_block_count.txt', f'{mapping_file_path}']
-    out_str = subprocess.check_output(checker_command)
+    checker_command_str = ' '.join(checker_command)
+    logging.warning(f'{checker_command_str}')
+    out_str = subprocess.check_output(checker_command_str, shell=True)
     for line in out_str.splitlines():
-        logging.warning(line)
+        logging.warning(line.decode("utf-8"))
     logging.warning('========================')
 
 

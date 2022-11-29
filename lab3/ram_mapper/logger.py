@@ -1,13 +1,14 @@
 import logging
 
 logger = logging.getLogger('ram_mapper')
-_handler = logging.StreamHandler()
-_handler.setFormatter(logging.Formatter(
-    fmt='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s', datefmt='%m%d:%H:%M:%S'))
-logger.addHandler(_handler)
 
 
 def init_logger(level=logging.INFO):
+    if not logger.hasHandlers():
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(logging.Formatter(
+            fmt='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s', datefmt='%m%d:%H:%M:%S'))
+        logger.addHandler(_handler)
     logger.setLevel(level)
 
 
