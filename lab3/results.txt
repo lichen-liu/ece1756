@@ -404,7 +404,23 @@ python3 explorer.py --multiplier 128
 1129:11:05:29.176 WARNING [driver.py] Geometric Average Area for 69 circuits: 1.939929E+08
 1129:11:05:29.181 WARNING [driver.py] Total elapsed 193.276 seconds
 ug216:~/ece1756/lab3% python3 -m ram_mapper --lb=logic_block_count.txt --lr=logical_rams.txt --out=mapping.txt --arch="-l 4 1 -b 8192 16 8 1"
+./checker -l 4 1 -b 8192 16 8 1 -t logical_rams.txt logic_block_count.txt mapping.txt
+Geometric Average Area: 1.94018e+08
+---------------------------------------------------
+Defined RAM Type: 
+  Type 1 RAM attributes: 
+    Physical RAM Type:        LUTRAM
+    Size (in bits):           640
+    Max Width:                20
+    Ratio:                    4:1
 
+  Type 2 RAM attributes: 
+    Physical RAM Type:        Block RAM
+    Size (in bits):           8192
+    Max Width:                16
+    Ratio:                    8:1
+
+    
 
 1129:12:02:04.572 WARNING [driver.py] Geometric Average Area for 69 circuits: 1.947459E+08
 1129:12:02:04.577 WARNING [driver.py] Total elapsed 306.139 seconds
