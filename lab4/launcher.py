@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 import logging
+from multiprocessing import Pool
 import os
 import pathlib
 import re
@@ -11,7 +12,7 @@ import statistics
 import subprocess
 from timeit import default_timer
 from pathlib import Path
-from typing import ClassVar, Iterable, NamedTuple, Optional, Pattern, Sequence
+from typing import ClassVar, Iterable, List, NamedTuple, Optional, Pattern, Sequence
 
 
 def prepare_suite_dir(suite_name: str) -> Path:
@@ -25,7 +26,7 @@ def prepare_suite_dir(suite_name: str) -> Path:
         f'suite_{suite_idx}_{suite_name}_{time_str}')
     suite_path.mkdir(exist_ok=False)
 
-    logging.info(f'Created suite directory: {suite_path}')
+    logging.warning(f'Created suite directory: {suite_path}')
     return suite_path
 
 
@@ -110,6 +111,9 @@ def geomean_float(in_list: Iterable[float]) -> float:
 
 @dataclass
 class CircuitQoR:
+    seed: Optional[int] = None
+    circuit: Optional[str] = None
+
     minimum_channel_width: Optional[int] = None
 
     channel_width: Optional[int] = None
@@ -133,7 +137,21 @@ class CircuitQoR:
 
     @classmethod
     def from_geomean(cls, qors: Sequence[CircuitQoR]) -> CircuitQoR:
+        assert len(qors) > 0
+        for qor in qors:
+            assert qor.is_route_successful()
+
+        circuit = qors[0].circuit
+        if not all(map(lambda qor: qor.circuit == circuit, qors)):
+            circuit = None
+
+        seed = qors[0].seed
+        if not all(map(lambda qor: qor.seed == seed, qors)):
+            seed = None
+
         return cls(
+            circuit=circuit,
+            seed=seed,
             channel_width=geomean_int(
                 map(lambda qor: qor.channel_width, qors)),
             routing_area_total=geomean_float(
@@ -167,9 +185,9 @@ class CircuitQoR:
                 (self.fmax is not None))
 
 
-def parse_circuit_qor(log_dir: Path, require_minimum_channel_width: bool = False) -> CircuitQoR:
+def parse_circuit_qor(log_dir: Path, circuit: str, seed: int, require_minimum_channel_width: bool = False) -> CircuitQoR:
     log_path = log_dir.joinpath('vpr_stdout.log')
-    qor = CircuitQoR()
+    qor = CircuitQoR(seed=seed, circuit=circuit)
 
     with open(log_path) as f:
         for line in f:
@@ -181,48 +199,54 @@ def parse_circuit_qor(log_dir: Path, require_minimum_channel_width: bool = False
 
 
 def run_vpr_circuit_of_seed(run_path: Path, circuit_name: str, seed: int, circuit_path: str) -> Optional[CircuitQoR]:
-    logging.info(f'Running VPR for [{circuit_name}/seed={seed}]')
+    msg_header = f'[{circuit_name}/seed={seed}]'
+    logging.info(f'Running VPR for {msg_header}')
 
     # Run to find the minimum channel width
-    logging.info(f'  - Run to find minimum channel width')
+    logging.info(f'{msg_header}  1. Run to find minimum channel width')
     tmp_path = prepare_tmp_dir(run_path=run_path, name=f'seed{seed}_step0')
     VPRRunParam(blif_file=circuit_path, seed=seed).run(cwd=tmp_path)
     qor = parse_circuit_qor(
-        log_dir=tmp_path, require_minimum_channel_width=True)
+        log_dir=tmp_path, require_minimum_channel_width=True, circuit=circuit_name, seed=seed)
     if not qor.is_route_successful():
         return None
-    logging.info(f'    Min channel width={qor.minimum_channel_width}')
+    logging.info(
+        f'{msg_header}        Min channel width: {qor.minimum_channel_width}')
 
     # Rerun with 1.3x minimum channel width
     route_channel_width = qor.minimum_channel_width * 1.3
     # Round to nearest even number
     route_channel_width = round(route_channel_width/2)*2
     logging.info(
-        f'  - Run 1.3x minimum channel width ({route_channel_width})')
+        f'{msg_header}  2. Run 1.3x minimum channel width ({route_channel_width})')
     tmp_path = prepare_tmp_dir(run_path=run_path, name=f'seed{seed}_step1')
     VPRRunParam(blif_file=circuit_path, seed=seed,
                 route_chan_width=route_channel_width).run(cwd=tmp_path)
-    qor = parse_circuit_qor(log_dir=tmp_path)
+    qor = parse_circuit_qor(log_dir=tmp_path, circuit=circuit_name, seed=seed)
     if not qor.is_route_successful():
         return None
-    logging.info(f'    {qor}')
+    logging.info(f'{msg_header}       Run QoR: {qor}')
     return qor
 
 
-def run_vpr_circuit_across_seeds(run_path: Path, circuit_name: str, num_seeds: int, circuit_path: str) -> CircuitQoR:
+def run_vpr_circuit_across_seeds(run_path: Path, circuit_name: str, num_seeds: int, circuit_path: str) -> List[CircuitQoR]:
     qors = list()
     seed = 0
+    max_attempts = num_seeds*4
     while len(qors) < num_seeds:
         qor = run_vpr_circuit_of_seed(
             run_path=run_path, circuit_name=circuit_name, seed=seed, circuit_path=circuit_path)
         if qor is not None:
             assert qor.is_route_successful()
             qors.append(qor)
+        elif seed >= max_attempts:
+            logging.error(
+                '[{circuit_name}] Failed to compile for {num_seeds} times with {max_attempts} attempts, aborting')
+            return []
         seed += 1
-    logging.info(f'{num_seeds} seeds done for [{circuit_name}]')
-    qor = CircuitQoR.from_geomean(qors)
-    logging.info(f'  {qor}')
-    return qor
+    logging.warning(
+        f'[{circuit_name}] {num_seeds} seeds ({seed} attempts) done')
+    return qors
 
 
 @contextmanager
@@ -237,47 +261,88 @@ def elapsed_timer():
     def elapser(): return end-start
 
 
-def main(args):
+def init_logger(args):
+    def verbosity_to_logging_level(verbose_count: int) -> int:
+        if verbose_count == 0:
+            return logging.WARNING
+        elif verbose_count == 1:
+            return logging.INFO
+        else:
+            return logging.DEBUG
+
     logging.basicConfig(
-        format='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s',  datefmt='%m%d:%H:%M:%S', level=logging.INFO)
+        format='%(asctime)s.%(msecs)03d %(levelname)-7s [%(filename)s] %(message)s',  datefmt='%m%d:%H:%M:%S', level=verbosity_to_logging_level(args.verbose))
+
+
+def main(args):
+    init_logger(args)
+    logging.warning(f'{args}')
     with elapsed_timer() as elapsed:
         runner(args)
     logging.warning(f'Total elapsed {elapsed():.3f} seconds')
 
 
 def init(parser):
-    pass
+    parser.add_argument(
+        '--verbose', '-v',
+        action='count',
+        default=0,
+        help='Raise logging verbosity, default is Warning+')
+    parser.add_argument(
+        '--seeds',
+        type=int,
+        default=5,
+        help='Specify the number of seeds to run, default to 5'
+    )
 
 
 def runner(args):
     suite_path = prepare_suite_dir(suite_name='test')
 
-    circuit_path = './a4_benchmarks/frisc.blif'
-    circuit_name = Path(circuit_path).with_suffix('').name
-    run_path = prepare_run_dir(suite_path=suite_path, run_name=circuit_name)
-    qor = run_vpr_circuit_across_seeds(
-        run_path=run_path,
-        circuit_name=circuit_name,
-        num_seeds=5,
-        circuit_path=circuit_path)
-    assert qor is not None and qor.is_route_successful()
+    # Collect all circuits
+    circuit_folder = Path('./a4_benchmarks')
+    circuit_paths = [x for x in circuit_folder.iterdir() if not x.is_dir()]
 
-    # # Run checker and print area
-    # logging.warning('==========BEST==========')
-    # area, max_width, ratio, run_path = sorted_results[0]
-    # arch_str = compose_bram_arch_str(
-    #     bram_size=bram_size, max_width=max_width, ratio=ratio)
-    # if use_lutram:
-    #     arch_str = '-l 1 1 ' + arch_str
-    # mapping_file_path = run_path.joinpath('mapping.txt')
-    # checker_command = ['./checker', arch_str, '-t',
-    #                    'logical_rams.txt', 'logic_block_count.txt', f'{mapping_file_path}']
-    # checker_command_str = ' '.join(checker_command)
-    # logging.warning(f'{checker_command_str}')
-    # out_str = subprocess.check_output(checker_command_str, shell=True)
-    # for line in out_str.splitlines():
-    #     logging.warning(line.decode("utf-8"))
-    # logging.warning('========================')
+    # Prepare for run
+    circuit_run_args = list()
+    for circuit_path in circuit_paths:
+        circuit_name = Path(circuit_path).with_suffix('').name
+        run_path = prepare_run_dir(
+            suite_path=suite_path, run_name=circuit_name)
+        circuit_run_args.append(
+            (run_path, circuit_name, args.seeds, circuit_path))
+    logging.info(
+        f'Collected {len(circuit_run_args)} circuits from {circuit_folder}')
+    for circuit_run_arg in circuit_run_args:
+        logging.info(f'  Arg: {circuit_run_arg}')
+
+    # Run in parallel
+    with Pool(initializer=init_logger, initargs=(args,)) as p:
+        circuits_qors = p.starmap(func=run_vpr_circuit_across_seeds,
+                                  iterable=circuit_run_args)
+
+    logging.warning('--------------------------')
+    logging.warning('Circuit Seed QoR:')
+    for circuit_qors in circuits_qors:
+        for circuit_qor in circuit_qors:
+            logging.warning(f'  {circuit_qor}')
+    logging.warning('')
+
+    logging.warning('++++++++++++++++++++++++++')
+    circuits_geomean_qor = [CircuitQoR.from_geomean(
+        circuit_qors) for circuit_qors in circuits_qors if len(circuit_qors) > 0]
+    logging.warning(
+        f'Circuit Geomean QoR (from {len(circuits_geomean_qor)} successful circuits with {args.seeds} seeds):')
+    for circuit_geomean_qor in circuits_geomean_qor:
+        logging.warning(f'  {circuit_geomean_qor}')
+    logging.warning('')
+
+    logging.warning('**************************')
+    final_qor = CircuitQoR.from_geomean(circuits_geomean_qor)
+    logging.warning(
+        f'Final QoR (from {len(circuits_geomean_qor)} successful circuits with {args.seeds} seeds):')
+    logging.warning(f'  {final_qor}')
+    logging.warning('')
 
 
 if __name__ == '__main__':
