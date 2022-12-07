@@ -1,0 +1,46 @@
+1. Routing wire length study
+
+  <segment freq="1.000000" length="1" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1</sb>
+    <cb type="pattern">1</cb>
+  </segment>
+1206:19:37:46.678 WARNING [launcher.py] **************************
+1206:19:37:46.678 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1206:19:37:46.678 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=50.768568642414095, channel_width=66.25628162775546, routing_area_total=3398593.3420746457, routing_area_per_tile=7301.440042117972, critical_path_delay=7.488460763584223, fmax=133.5387838729827)
+1206:19:37:46.678 WARNING [launcher.py]   min_ch_w=50.768568642414095 1.3x_rt_area_per_tile=7301.440042117972 1.3x_rt_cp_delay=7.488460763584223 1.3x_delay_area=54676.547273063166
+1206:19:37:46.678 WARNING [launcher.py] 
+1206:19:37:46.679 WARNING [launcher.py] Total elapsed 314.531 seconds
+
+  <segment freq="1.000000" length="2" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1 1</sb>
+    <cb type="pattern">1 1</cb>
+  </segment>
+  1206:19:42:33.679 WARNING [launcher.py] **************************
+  1206:19:42:33.679 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+  1206:19:42:33.679 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=50.25257871866512, channel_width=65.6592007198518, routing_area_total=2440211.616486055, routing_area_per_tile=5242.480654049705, critical_path_delay=6.081311502597325, fmax=164.43825559524032)
+  1206:19:42:33.679 WARNING [launcher.py]   min_ch_w=50.25257871866512 1.3x_rt_area_per_tile=5242.480654049705 1.3x_rt_cp_delay=6.081311502597325 1.3x_delay_area=31881.15790361642
+  1206:19:42:33.679 WARNING [launcher.py] 
+  1206:19:42:33.679 WARNING [launcher.py] Total elapsed 215.975 seconds
+
+  <segment freq="1.000000" length="4" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1 1 1 1</sb>
+    <cb type="pattern">1 1 1 1</cb>
+  </segment>
+  wip
+
+
+  <segment freq="1.000000" length="8" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1 1 1 1 1 1 1 1</sb>
+    <cb type="pattern">1 1 1 1 1 1 1 1</cb>
+  </segment>
+
+
+  <segment freq="1.000000" length="16" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</sb>
+    <cb type="pattern">1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</cb>
+  </segment>
