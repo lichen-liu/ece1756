@@ -80,14 +80,18 @@ class VPRRunParam(NamedTuple):
             cmdline_list += ['--route_chan_width', str(self.route_chan_width)]
         return cmdline_list
 
-    def run(self, cwd: Path):
+    def run(self, cwd: Path) -> bool:
         run_cmdline_list = self.to_cmdline()
         logging.debug(' '.join(run_cmdline_list))
-        subprocess.check_call(
-            args=run_cmdline_list,
-            cwd=cwd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL)
+        try:
+            subprocess.check_call(
+                args=run_cmdline_list,
+                cwd=cwd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            return False
+        return True
 
 
 def geomean_int(in_list: Iterable[int]) -> float:
@@ -115,7 +119,6 @@ class CircuitQoR:
     circuit: Optional[str] = None
 
     minimum_channel_width: Optional[int] = None
-
     channel_width: Optional[int] = None
     routing_area_total: Optional[float] = None
     routing_area_per_tile: Optional[float] = None
@@ -152,6 +155,8 @@ class CircuitQoR:
         return cls(
             circuit=circuit,
             seed=seed,
+            minimum_channel_width=geomean_int(
+                map(lambda qor: qor.minimum_channel_width, qors)),
             channel_width=geomean_int(
                 map(lambda qor: qor.channel_width, qors)),
             routing_area_total=geomean_float(
@@ -184,16 +189,21 @@ class CircuitQoR:
                 (self.critical_path_delay is not None) and
                 (self.fmax is not None))
 
+    def present_data(self) -> str:
+        return f'min_ch_w={self.minimum_channel_width} 1.3x_rt_area_per_tile={self.routing_area_per_tile} 1.3x_rt_cp_delay={self.critical_path_delay} 1.3x_delay_area={self.routing_area_per_tile*self.critical_path_delay}'
 
-def parse_circuit_qor(log_dir: Path, circuit: str, seed: int, require_minimum_channel_width: bool = False) -> CircuitQoR:
+
+def parse_circuit_qor(log_dir: Path, circuit: str, seed: int, minimum_channel_width: Optional[int] = None) -> CircuitQoR:
     log_path = log_dir.joinpath('vpr_stdout.log')
-    qor = CircuitQoR(seed=seed, circuit=circuit)
+    qor = CircuitQoR(seed=seed, circuit=circuit,
+                     minimum_channel_width=minimum_channel_width)
 
     with open(log_path) as f:
         for line in f:
             qor.parse_line(line)
 
-    if require_minimum_channel_width:
+    # If minimum_channel_width is not pre-assigned, it must be parsed
+    if minimum_channel_width is None:
         assert qor.minimum_channel_width is not None
     return qor
 
@@ -205,24 +215,28 @@ def run_vpr_circuit_of_seed(run_path: Path, circuit_name: str, seed: int, circui
     # Run to find the minimum channel width
     logging.info(f'{msg_header}  1. Run to find minimum channel width')
     tmp_path = prepare_tmp_dir(run_path=run_path, name=f'seed{seed}_step0')
-    VPRRunParam(blif_file=circuit_path, seed=seed).run(cwd=tmp_path)
+    if not VPRRunParam(blif_file=circuit_path, seed=seed).run(cwd=tmp_path):
+        return None
     qor = parse_circuit_qor(
-        log_dir=tmp_path, require_minimum_channel_width=True, circuit=circuit_name, seed=seed)
+        log_dir=tmp_path, minimum_channel_width=None, circuit=circuit_name, seed=seed)
     if not qor.is_route_successful():
         return None
+    qor_min_ch_width = qor.minimum_channel_width
     logging.info(
-        f'{msg_header}        Min channel width: {qor.minimum_channel_width}')
+        f'{msg_header}        Min channel width: {qor_min_ch_width}')
 
     # Rerun with 1.3x minimum channel width
-    route_channel_width = qor.minimum_channel_width * 1.3
+    route_channel_width = qor_min_ch_width * 1.3
     # Round to nearest even number
     route_channel_width = round(route_channel_width/2)*2
     logging.info(
         f'{msg_header}  2. Run 1.3x minimum channel width ({route_channel_width})')
     tmp_path = prepare_tmp_dir(run_path=run_path, name=f'seed{seed}_step1')
-    VPRRunParam(blif_file=circuit_path, seed=seed,
-                route_chan_width=route_channel_width).run(cwd=tmp_path)
-    qor = parse_circuit_qor(log_dir=tmp_path, circuit=circuit_name, seed=seed)
+    if not VPRRunParam(blif_file=circuit_path, seed=seed,
+                       route_chan_width=route_channel_width).run(cwd=tmp_path):
+        return None
+    qor = parse_circuit_qor(
+        log_dir=tmp_path, circuit=circuit_name, seed=seed, minimum_channel_width=qor_min_ch_width)
     if not qor.is_route_successful():
         return None
     logging.info(f'{msg_header}       Run QoR: {qor}')
@@ -241,7 +255,7 @@ def run_vpr_circuit_across_seeds(run_path: Path, circuit_name: str, num_seeds: i
             qors.append(qor)
         elif seed >= max_attempts:
             logging.error(
-                '[{circuit_name}] Failed to compile for {num_seeds} times with {max_attempts} attempts, aborting')
+                f'[{circuit_name}] Failed to compile for {num_seeds} times with {max_attempts} attempts, aborting')
             return []
         seed += 1
     logging.warning(
@@ -294,10 +308,16 @@ def init(parser):
         default=5,
         help='Specify the number of seeds to run, default to 5'
     )
+    parser.add_argument(
+        '--name',
+        type=str,
+        required=True,
+        help='Experiment name'
+    )
 
 
 def runner(args):
-    suite_path = prepare_suite_dir(suite_name='test')
+    suite_path = prepare_suite_dir(suite_name=args.name)
 
     # Collect all circuits
     circuit_folder = Path('./a4_benchmarks')
@@ -321,12 +341,12 @@ def runner(args):
         circuits_qors = p.starmap(func=run_vpr_circuit_across_seeds,
                                   iterable=circuit_run_args)
 
-    logging.warning('--------------------------')
-    logging.warning('Circuit Seed QoR:')
+    logging.info('--------------------------')
+    logging.info('Circuit Seed QoR:')
     for circuit_qors in circuits_qors:
         for circuit_qor in circuit_qors:
-            logging.warning(f'  {circuit_qor}')
-    logging.warning('')
+            logging.info(f'  {circuit_qor}')
+    logging.info('')
 
     logging.warning('++++++++++++++++++++++++++')
     circuits_geomean_qor = [CircuitQoR.from_geomean(
@@ -342,6 +362,7 @@ def runner(args):
     logging.warning(
         f'Final QoR (from {len(circuits_geomean_qor)} successful circuits with {args.seeds} seeds):')
     logging.warning(f'  {final_qor}')
+    logging.warning(f'  {final_qor.present_data()}')
     logging.warning('')
 
 
