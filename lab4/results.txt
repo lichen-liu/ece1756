@@ -147,3 +147,19 @@ c)
 
 
 3. Optimization study
+
+a)
+
+Existing best:
+1206:19:47:25.478 WARNING [launcher.py] **************************
+1206:19:47:25.478 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1206:19:47:25.478 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.46661651310349, channel_width=76.01546731612191, routing_area_total=2166896.6801124057, routing_area_per_tile=4655.296056215333, critical_path_delay=5.912571458769492, fmax=169.1311368555031)
+1206:19:47:25.478 WARNING [launcher.py]   min_ch_w=58.46661651310349 1.3x_rt_area_per_tile=4655.296056215333 1.3x_rt_cp_delay=5.912571458769492 1.3x_delay_area=27524.770594100955
+1206:19:47:25.478 WARNING [launcher.py] 
+1206:19:47:25.478 WARNING [launcher.py] Total elapsed 184.548 seconds
+1207:01:32:49.630 WARNING [launcher.py] **************************
+1207:01:32:49.630 WARNING [launcher.py] Final QoR (from 8 successful circuits with 1 seeds):
+1207:01:32:49.630 WARNING [launcher.py]   CircuitQoR(seed=0, circuit=None, minimum_channel_width=58.07045676342393, channel_width=75.4830329870075, routing_area_total=2152410.753248573, routing_area_per_tile=4624.17434783398, critical_path_delay=6.003953196897358, fmax=166.5568302150734)
+1207:01:32:49.630 WARNING [launcher.py]   min_ch_w=58.07045676342393 1.3x_rt_area_per_tile=4624.17434783398 1.3x_rt_cp_delay=6.003953196897358 1.3x_delay_area=27763.326358688584
+1207:01:32:49.630 WARNING [launcher.py] 
+1207:01:32:49.630 WARNING [launcher.py] Total elapsed 38.998 seconds
