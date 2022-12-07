@@ -209,3 +209,28 @@ routing switch pattern + short wire len=2
 1207:11:53:32.661 WARNING [launcher.py]   min_ch_w=59.00160172691609 1.3x_rt_area_per_tile=4549.37816062694 1.3x_rt_cp_delay=5.681538075074037 1.3x_delay_area=25847.465237512253
 1207:11:53:32.661 WARNING [launcher.py] 
 1207:11:53:32.661 WARNING [launcher.py] Total elapsed 184.028 seconds
+
+
+<segment freq="0.6" length="4" type="unidir" Rmetal="40.4" Cmetal="2.7e-14">
+1207:12:51:05.796 WARNING [launcher.py] **************************
+1207:12:51:05.796 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:12:51:05.796 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.527964889559485, channel_width=76.06768658999593, routing_area_total=2121667.7805170896, routing_area_per_tile=4558.131196820841, critical_path_delay=5.647487978992003, fmax=177.06991869781464)
+1207:12:51:05.796 WARNING [launcher.py]   min_ch_w=58.527964889559485 1.3x_rt_area_per_tile=4558.131196820841 1.3x_rt_cp_delay=5.647487978992003 1.3x_delay_area=25741.99114071413
+1207:12:51:05.796 WARNING [launcher.py] 
+1207:12:51:05.797 WARNING [launcher.py] Total elapsed 191.980 seconds
+
+<segment freq="0.6" length="4" type="unidir" Rmetal="202" Cmetal="1.35e-14">
+1207:12:57:41.347 WARNING [launcher.py] **************************
+1207:12:57:41.347 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:12:57:41.347 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.14547281976749, channel_width=75.57178676762894, routing_area_total=2111393.45905202, routing_area_per_tile=4536.057756387802, critical_path_delay=5.668461199553601, fmax=176.41477856234366)
+1207:12:57:41.347 WARNING [launcher.py]   min_ch_w=58.14547281976749 1.3x_rt_area_per_tile=4536.057756387802 1.3x_rt_cp_delay=5.668461199553601 1.3x_delay_area=25712.467391018417
+1207:12:57:41.347 WARNING [launcher.py] 
+1207:12:57:41.347 WARNING [launcher.py] Total elapsed 186.562 seconds
+
+<segment freq="0.75" length="4" type="unidir" Rmetal="202" Cmetal="1.35e-14">
+1207:13:17:17.452 WARNING [launcher.py] **************************
+1207:13:17:17.452 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:13:17:17.452 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=56.990401035978955, channel_width=74.00144110782657, routing_area_total=2055564.4009896347, routing_area_per_tile=4416.115375876527, critical_path_delay=5.646471361107402, fmax=177.10172765590883)
+1207:13:17:17.452 WARNING [launcher.py]   min_ch_w=56.990401035978955 1.3x_rt_area_per_tile=4416.115375876527 1.3x_rt_cp_delay=5.646471361107402 1.3x_delay_area=24935.468997232856
+1207:13:17:17.452 WARNING [launcher.py] 
+1207:13:17:17.452 WARNING [launcher.py] Total elapsed 192.873 seconds
