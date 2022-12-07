@@ -118,3 +118,32 @@ b)
 1207:00:34:35.118 WARNING [launcher.py] Total elapsed 184.845 seconds
 
 c)
+<input name="I" num_pins="33" equivalent="none"/>
+<output name="O" num_pins="10" equivalent="none"/>
+
+<fc in_type="frac" in_val="0.15" out_type="frac" out_val="0.15"/>
+1207:00:54:29.674 WARNING [launcher.py] **************************
+1207:00:54:29.674 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:00:54:29.674 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=130.7025080634857, channel_width=170.03584658957521, routing_area_total=4438123.715008967, routing_area_per_tile=9534.721639614632, critical_path_delay=7.411873037009479, fmax=134.91867886413885)
+1207:00:54:29.675 WARNING [launcher.py]   min_ch_w=130.7025080634857 1.3x_rt_area_per_tile=9534.721639614632 1.3x_rt_cp_delay=7.411873037009479 1.3x_delay_area=70670.14623605051
+1207:00:54:29.675 WARNING [launcher.py] 
+1207:00:54:29.675 WARNING [launcher.py] Total elapsed 549.249 seconds
+
+<fc in_type="frac" in_val="0.5" out_type="frac" out_val="0.5"/>
+1207:01:10:45.498 WARNING [launcher.py] **************************
+1207:01:10:45.498 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:01:10:45.498 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=100.28439243415384, channel_width=130.60782147400934, routing_area_total=4826226.892614058, routing_area_per_tile=10368.52948082611, critical_path_delay=8.11989262308905, fmax=123.15437293158725)
+1207:01:10:45.498 WARNING [launcher.py]   min_ch_w=100.28439243415384 1.3x_rt_area_per_tile=10368.52948082611 1.3x_rt_cp_delay=8.11989262308905 1.3x_delay_area=84191.34604364127
+1207:01:10:45.498 WARNING [launcher.py] 
+1207:01:10:45.499 WARNING [launcher.py] Total elapsed 370.358 seconds
+
+<fc in_type="frac" in_val="1.0" out_type="frac" out_val="1.0"/>
+1207:01:20:08.495 WARNING [launcher.py] **************************
+1207:01:20:08.495 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:01:20:08.495 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=81.05824646018297, channel_width=105.250297328578, routing_area_total=5167327.701200586, routing_area_per_tile=11101.342935590923, critical_path_delay=8.797517501754744, fmax=113.6684360243769)
+1207:01:20:08.495 WARNING [launcher.py]   min_ch_w=81.05824646018297 1.3x_rt_area_per_tile=11101.342935590923 1.3x_rt_cp_delay=8.797517501754744 1.3x_delay_area=97664.25876884253
+1207:01:20:08.495 WARNING [launcher.py] 
+1207:01:20:08.495 WARNING [launcher.py] Total elapsed 276.522 seconds
+
+
+3. Optimization study
