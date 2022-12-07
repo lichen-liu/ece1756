@@ -246,7 +246,7 @@ def run_vpr_circuit_of_seed(run_path: Path, circuit_name: str, seed: int, circui
 def run_vpr_circuit_across_seeds(run_path: Path, circuit_name: str, num_seeds: int, circuit_path: str) -> List[CircuitQoR]:
     qors = list()
     seed = 0
-    max_attempts = num_seeds*4
+    max_attempts = num_seeds*5
     while len(qors) < num_seeds:
         qor = run_vpr_circuit_of_seed(
             run_path=run_path, circuit_name=circuit_name, seed=seed, circuit_path=circuit_path)
@@ -255,7 +255,7 @@ def run_vpr_circuit_across_seeds(run_path: Path, circuit_name: str, num_seeds: i
             qors.append(qor)
         elif seed >= max_attempts:
             logging.error(
-                f'[{circuit_name}] Failed to compile for {num_seeds} times with {max_attempts} attempts, aborting')
+                f'[{circuit_name}] Failed to compile for {num_seeds} times with {max_attempts} attempts ({len(qors)} passed), aborting')
             return []
         seed += 1
     logging.warning(

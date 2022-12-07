@@ -157,9 +157,55 @@ Existing best:
 1206:19:47:25.478 WARNING [launcher.py]   min_ch_w=58.46661651310349 1.3x_rt_area_per_tile=4655.296056215333 1.3x_rt_cp_delay=5.912571458769492 1.3x_delay_area=27524.770594100955
 1206:19:47:25.478 WARNING [launcher.py] 
 1206:19:47:25.478 WARNING [launcher.py] Total elapsed 184.548 seconds
-1207:01:32:49.630 WARNING [launcher.py] **************************
-1207:01:32:49.630 WARNING [launcher.py] Final QoR (from 8 successful circuits with 1 seeds):
-1207:01:32:49.630 WARNING [launcher.py]   CircuitQoR(seed=0, circuit=None, minimum_channel_width=58.07045676342393, channel_width=75.4830329870075, routing_area_total=2152410.753248573, routing_area_per_tile=4624.17434783398, critical_path_delay=6.003953196897358, fmax=166.5568302150734)
-1207:01:32:49.630 WARNING [launcher.py]   min_ch_w=58.07045676342393 1.3x_rt_area_per_tile=4624.17434783398 1.3x_rt_cp_delay=6.003953196897358 1.3x_delay_area=27763.326358688584
-1207:01:32:49.630 WARNING [launcher.py] 
-1207:01:32:49.630 WARNING [launcher.py] Total elapsed 38.998 seconds
+
+
+
+1) change the various Fc values
+2) use more than one type of wire (with different lengths for example)
+3) change the switch pattern using the switch_block specification
+4) choose which points along a wire have routing switches and which do not
+5) change the electrical parameters of the wires:
+i. make wires with Rmetal reduced by 60%, but 20% more Cmetal (by widening the wire at the expense of reducing the spacing between wires)
+ii. make wires with double the Rmetal, but 40% less Cmetal (by making the wire narrower and using the extra room to increase the spacing between wires)
+iii. you can also put up to 15% of your wires on a higher metal layer with the same Cmetal but only 25% of the Rmetal of the wires in the given architecture file.
+
+
+IO Fc 0.1
+1207:02:10:52.935 WARNING [launcher.py] **************************
+1207:02:10:52.935 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:02:10:52.935 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.34997941128656, channel_width=75.89487610849064, routing_area_total=2145604.0848312275, routing_area_per_tile=4609.552417050872, critical_path_delay=5.905228420209031, fmax=169.34154778762746)
+1207:02:10:52.936 WARNING [launcher.py]   min_ch_w=58.34997941128656 1.3x_rt_area_per_tile=4609.552417050872 1.3x_rt_cp_delay=5.905228420209031 1.3x_delay_area=27220.45993761204
+1207:02:10:52.936 WARNING [launcher.py] 
+1207:02:10:52.936 WARNING [launcher.py] Total elapsed 194.509 seconds
+
+Upper metal layer
+<segment freq="0.15" length="4" type="unidir" Rmetal="25.25" Cmetal="22.5e-15">
+    <mux name="routing_switch"/>
+    <sb type="pattern">1 1 1 1 1</sb>
+    <cb type="pattern">1 1 1 1</cb>
+</segment>
+1207:03:48:43.794 WARNING [launcher.py] **************************
+1207:03:48:43.794 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:03:48:43.794 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.18543111804342, channel_width=75.60291831766045, routing_area_total=2143491.5124653797, routing_area_per_tile=4605.016547825245, critical_path_delay=5.7453180220422295, fmax=174.05474006168367)
+1207:03:48:43.794 WARNING [launcher.py]   min_ch_w=58.18543111804342 1.3x_rt_area_per_tile=4605.016547825245 1.3x_rt_cp_delay=5.7453180220422295 1.3x_delay_area=26457.28456402307
+1207:03:48:43.794 WARNING [launcher.py] 
+1207:03:48:43.795 WARNING [launcher.py] Total elapsed 181.316 seconds
+
+k6_N10_40nm_26457.xml
+
+routing switch pattern + short wire len=2
+1207:11:43:55.196 WARNING [launcher.py] **************************
+1207:11:43:55.196 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:11:43:55.196 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.728061778721276, channel_width=76.23819860900164, routing_area_total=2127450.98054927, routing_area_per_tile=4570.554009624112, critical_path_delay=5.659968218586255, fmax=176.67941292962914)
+1207:11:43:55.196 WARNING [launcher.py]   min_ch_w=58.728061778721276 1.3x_rt_area_per_tile=4570.554009624112 1.3x_rt_cp_delay=5.659968218586255 1.3x_delay_area=25869.190435804452
+1207:11:43:55.196 WARNING [launcher.py] 
+1207:11:43:55.196 WARNING [launcher.py] Total elapsed 179.624 seconds
+
+
+<switch_block type="subset" fs="3"/>
+1207:11:53:32.661 WARNING [launcher.py] **************************
+1207:11:53:32.661 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:11:53:32.661 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=59.00160172691609, channel_width=76.63406726371012, routing_area_total=2117593.433268713, routing_area_per_tile=4549.37816062694, critical_path_delay=5.681538075074037, fmax=176.00862060297618)
+1207:11:53:32.661 WARNING [launcher.py]   min_ch_w=59.00160172691609 1.3x_rt_area_per_tile=4549.37816062694 1.3x_rt_cp_delay=5.681538075074037 1.3x_delay_area=25847.465237512253
+1207:11:53:32.661 WARNING [launcher.py] 
+1207:11:53:32.661 WARNING [launcher.py] Total elapsed 184.028 seconds

@@ -88,24 +88,16 @@
          is of length 4 and has switches to every connection
          box (4 of them) and switch box (5 of them) 
          it passes. -->
-    <segment freq="0.6" length="4" type="unidir" Rmetal="101" Cmetal="22.5e-15">
+    <segment freq="0.85" length="4" type="unidir" Rmetal="101" Cmetal="22.5e-15">
       <mux name="routing_switch"/>
-      <sb type="pattern">1 0 1 0 1</sb>
+      <sb type="pattern">1 1 1 1 1</sb>
       <cb type="pattern">1 1 1 1</cb>
     </segment>
 
-    <!-- Put up to 15% of wires on a higher metal layer
-         with the same Cmetal but only 25% of the Rmetal of the wires in the given architecture file-->
     <segment freq="0.15" length="4" type="unidir" Rmetal="25.25" Cmetal="22.5e-15">
       <mux name="routing_switch"/>
-      <sb type="pattern">1 0 1 0 1</sb>
+      <sb type="pattern">1 1 1 1 1</sb>
       <cb type="pattern">1 1 1 1</cb>
-    </segment>
-
-    <segment freq="0.25" length="2" type="unidir" Rmetal="101" Cmetal="22.5e-15">
-      <mux name="routing_switch"/>
-      <sb type="pattern">1 1 1</sb>
-      <cb type="pattern">1 1</cb>
     </segment>
   </segmentlist>
 
