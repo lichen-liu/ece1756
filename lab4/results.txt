@@ -92,3 +92,29 @@ a)
 1206:20:27:19.292 WARNING [launcher.py] Total elapsed 195.998 seconds
 
 b)
+
+<fc in_type="frac" in_val="0.15" out_type="frac" out_val="0.15"/>
+1207:00:22:20.871 WARNING [launcher.py] **************************
+1207:00:22:20.871 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:00:22:20.871 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.46661651310349, channel_width=76.01546731612191, routing_area_total=2166896.6801124057, routing_area_per_tile=4655.296056215333, critical_path_delay=5.912571458769492, fmax=169.1311368555031)
+1207:00:22:20.871 WARNING [launcher.py]   min_ch_w=58.46661651310349 1.3x_rt_area_per_tile=4655.296056215333 1.3x_rt_cp_delay=5.912571458769492 1.3x_delay_area=27524.770594100955
+1207:00:22:20.871 WARNING [launcher.py] 
+1207:00:22:20.871 WARNING [launcher.py] Total elapsed 179.382 seconds
+
+<fc in_type="frac" in_val="0.5" out_type="frac" out_val="0.5"/>
+1207:00:27:25.046 WARNING [launcher.py] **************************
+1207:00:27:25.046 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:00:27:25.046 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.17097713838217, channel_width=75.64979116580072, routing_area_total=2210409.149769928, routing_area_per_tile=4748.779330897618, critical_path_delay=5.856714812441262, fmax=170.7442088490116)
+1207:00:27:25.047 WARNING [launcher.py]   min_ch_w=58.17097713838217 1.3x_rt_area_per_tile=4748.779330897618 1.3x_rt_cp_delay=5.856714812441262 1.3x_delay_area=27812.246248282983
+1207:00:27:25.047 WARNING [launcher.py] 
+1207:00:27:25.047 WARNING [launcher.py] Total elapsed 189.244 seconds
+
+<fc in_type="frac" in_val="1.0" out_type="frac" out_val="1.0"/>
+1207:00:34:35.118 WARNING [launcher.py] **************************
+1207:00:34:35.118 WARNING [launcher.py] Final QoR (from 8 successful circuits with 5 seeds):
+1207:00:34:35.118 WARNING [launcher.py]   CircuitQoR(seed=None, circuit=None, minimum_channel_width=58.18172568348875, channel_width=75.52913257030816, routing_area_total=2252947.2617375576, routing_area_per_tile=4840.161822349443, critical_path_delay=5.882814778858154, fmax=169.9866394351009)
+1207:00:34:35.118 WARNING [launcher.py]   min_ch_w=58.18172568348875 1.3x_rt_area_per_tile=4840.161822349443 1.3x_rt_cp_delay=5.882814778858154 1.3x_delay_area=28473.77550058232
+1207:00:34:35.118 WARNING [launcher.py] 
+1207:00:34:35.118 WARNING [launcher.py] Total elapsed 184.845 seconds
+
+c)
