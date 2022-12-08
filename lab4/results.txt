@@ -201,6 +201,7 @@ routing switch pattern + short wire len=2
 1207:11:43:55.196 WARNING [launcher.py] 
 1207:11:43:55.196 WARNING [launcher.py] Total elapsed 179.624 seconds
 
+k6_N10_40nm_25869.xml
 
 <switch_block type="subset" fs="3"/>
 1207:11:53:32.661 WARNING [launcher.py] **************************
